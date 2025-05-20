@@ -10,7 +10,7 @@ import re
 import itertools
 import time
 from typing import Hashable, Iterable, Callable
-from functools import wraps, reduce
+from functools import wraps, reduce, partial
 import tracemalloc
 
 import law
@@ -21,6 +21,7 @@ from columnflow.util import maybe_import
 
 np = maybe_import("numpy")
 ak = maybe_import("awkward")
+coffea = maybe_import("coffea")
 
 _logger = law.logger.get_logger(__name__)
 
