@@ -110,7 +110,7 @@ verify_config_processes(cfg, warn=True)
 
 # default objects, such as calibrator, selector, producer, ml model, inference model, etc
 cfg.x.default_calibrator = "example"
-cfg.x.default_selector = "example"
+cfg.x.default_selector = "default"
 cfg.x.default_producer = "example"
 cfg.x.default_weight_producer = "example"
 cfg.x.default_ml_model = None
