@@ -1,0 +1,45 @@
+# coding: utf-8
+
+"""
+Column production methods related to higher-level features.
+"""
+
+
+from columnflow.production import Producer, producer
+from columnflow.production.categories import category_ids
+from columnflow.production.normalization import normalization_weights
+from columnflow.util import maybe_import
+from columnflow.columnar_util import set_ak_column
+
+from xyh.config.categories import add_categories_bjets, add_categories_njets
+
+from xyh.production.leptons import leading_lepton
+from xyh.production.prepare_objects import prepare_objects
+# TODO: Add weight producer, i.e. SFs and all
+
+ak = maybe_import("awkward")
+coffea = maybe_import("coffea")
+np = maybe_import("numpy")
+maybe_import("coffea.nanoevents.methods.nanoaod")
+
+
+@producer(
+  uses={
+    category_ids, normalization_weights,
+    prepare_objects, choose_lepton
+  },
+  produces={
+    category_ids, normalization_weights,
+    prepare_objects, choose_lepton
+  },
+)
+def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
+  events = self[leading_lepton](events, **kwargs)
+  events = self[prepare_objects](events, **kwargs)
+
+  return events
+
+@default.init
+def default_init(self: Producer) -> None:
+  add_categories_bjets(self.config_inst)
+  add_categories_njets(self.config_inst)
