@@ -81,7 +81,7 @@ def default(
   events, results_lepton = self[lepton_selection](events, **kwargs) 
   results += results_lepton
 
-  events, results_jet = self[jet_selection](events, **kwargs)
+  events, results_jet = self[jet_selection](events, results_lepton, **kwargs)
   results += results_jet
 
   # TODO: Implement trigger selection

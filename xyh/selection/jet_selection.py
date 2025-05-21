@@ -38,7 +38,8 @@ def jet_selection(
     self: Selector,
     events: ak.Array,
     lepton_results: SelectionResult,
-    stats: defaultdict,
+    # TODO: Consider re-adding this for cumulative stat info (eg Sumw2)
+    # stats: defaultdict,
     **kwargs,
 ) -> Tuple[ak.Array, SelectionResult]:
   steps = DotDict()

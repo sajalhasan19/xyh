@@ -13,22 +13,22 @@ np = maybe_import("numpy")
 ak = maybe_import("awkward")
 
 
-@categorizer(uses={"BJet"}, call_force=True)
-def catid_2bjets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
-    mask = (ak.num(events.BJet, axis=-1) >= 2)
-    return events, mask
+# @categorizer(uses={"BJet"}, call_force=True)
+# def catid_2bjets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
+#     mask = (ak.num(events.BJet, axis=-1) >= 2)
+#     return events, mask
 
 
-@categorizer(uses={"BJet"}, call_force=True)
-def catid_1bjets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
-    mask = (ak.num(events.BJet, axis=-1) == 1)
-    return events, mask
+# @categorizer(uses={"BJet"}, call_force=True)
+# def catid_1bjets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
+#     mask = (ak.num(events.BJet, axis=-1) == 1)
+#     return events, mask
 
 
-@categorizer(uses={"BJet"}, call_force=True)
-def catid_0bjets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
-    mask = (ak.num(events.BJet, axis=-1) == 0)
-    return events, mask
+# @categorizer(uses={"BJet"}, call_force=True)
+# def catid_0bjets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
+#     mask = (ak.num(events.BJet, axis=-1) == 0)
+#     return events, mask
 
 
 @categorizer(uses={"Jet"}, call_force=True)

@@ -16,8 +16,11 @@ import order as od
 import law
 
 from columnflow.util import DotDict
+from columnflow.production.cms.btag import BTagSFConfig
+
 from cmsdb.util import add_decay_process
-from xyh.config.analysis_xyh_run3 import analysis_xyh
+
+from xyh.config.analysis_xyh import analysis_xyh
 from xyh.config.categories import add_categories_selection
 from xyh.config.variables import add_variables
 from columnflow.config_util import (
@@ -59,7 +62,8 @@ def add_config(
 
   # create a config by passing the campaign, so id and name will be identical
   cfg = analysis_xyh.add_config(campaign, name=config_name, id=config_id)
-  
+  cfg.x.run = cfg.campaign.x.run
+
   colors = {
     "dy": "#FBFF36",
     "data": "#000000",
@@ -79,7 +83,7 @@ def add_config(
     "data",
   ]
 
- for process_name in process_names:
+  for process_name in process_names:
     cfg.add_process(procs.get(process_name))
     cfg.get_process(process_name).color1 = colors.get(process_name, "#aaaaaa")
     cfg.get_process(process_name).color2 = colors.get(process_name, "#000000")
@@ -116,18 +120,25 @@ def add_config(
     # # TTV
     "ttz_zll_m4to50_amcatnlo",
     "ttz_zll_m50toinf_amcatnlo",
+    "ttz_znunu_amcatnlo",
+    "ttz_zqq_amcatnlo",
 
     # # ST
+    # TODO: Check these against bbWW
     "st_tchannel_t_4f_powheg",
     "st_twchannel_tbar_sl_powheg",
     "st_twchannel_t_dl_powheg",
     "st_twchannel_t_sl_powheg",
 
     # # DY
-    "dy_m50toinf_1j_madgraph",
-    "dy_m50toinf_2j_madgraph",
-    "dy_m50toinf_3j_madgraph",
-    "dy_m50toinf_4j_madgraph",
+    # NLO Samples
+    # TODO: Implement stitching
+    "dy_m50toinf_amcatnlo",
+    "dy_m10to50_amcatnlo",
+    "dy_m4to10_amcatnlo",
+    "dy_m50toinf_0j_amcatnlo",
+    "dy_m50toinf_1j_amcatnlo",
+    "dy_m50toinf_2j_amcatnlo",
 
     # # VV
     "zz_pythia",
@@ -136,7 +147,6 @@ def add_config(
     # # Data
     # # Double Muon
     *if_era(year=2022, tag="preEE", values=[
-      "data_doublemu_c",
       "data_mu_c",
       "data_mu_d",
       "data_egamma_c",
@@ -171,7 +181,7 @@ def add_config(
 
 
   # default calibrator, selector, producer, ml model and inference model
-  cfg.x.default_calibrator = "skip_jecunc"
+  cfg.x.default_calibrator = "default" # "skip_jecunc" TODO: use this one?
   cfg.x.default_selector = "default"
   cfg.x.default_producer = "default"
   cfg.x.default_weight_producer = "all_weights"
@@ -369,12 +379,33 @@ def add_config(
     },
   })
 
-  from columnflow.production.cms.btag import SplitBTagSFConfig
-  cfg.x.btag_sf = SplitBTagSFConfig(
-    correction_set=("deepJet_light", "deepJet_comb"),
-    discriminator="btagDeepFlavB",
-    corrector_kwargs={"working_point": "M"},
+  # b-tag configuration. Potentially overwritten by the jet Selector.
+  if cfg.x.run == 2:
+    cfg.x.b_tagger = "deepjet"
+    cfg.x.btag_sf = BTagSFConfig(
+      correction_set="deepJet_shape",
+      jec_sources=cfg.x.btag_sf_jec_sources,
+      discriminator="btagDeepFlavB",
+    )
+  elif cfg.x.run == 3:
+    cfg.x.b_tagger = "deepjet" # TODO : Move to pnet?
+    cfg.x.btag_sf = BTagSFConfig(
+      correction_set="deepJet_shape",
+      jec_sources=cfg.x.btag_sf_jec_sources,
+      discriminator="btagDeepFlavB",
+    )
+
+  cfg.x.btag_column = cfg.x.btag_sf.discriminator
+  cfg.x.btag_wp = "medium"
+  cfg.x.btag_wp_score = (
+    cfg.x.btag_working_points[cfg.x.b_tagger][cfg.x.btag_wp]
   )
+  if cfg.x.btag_wp_score == 0.0:
+    raise ValueError(f"Unknown b-tag working point '{cfg.x.btag_wp}' for campaign {cfg.x.cpn_tag}")
+  # TODO: Add pnet
+  # cfg.x.xbb_btag_wp_score = cfg.x.btag_working_points["particlenet_xbb_vs_qcd"]["medium"]
+  # if cfg.x.xbb_btag_wp_score == 0.0:
+  #   raise ValueError(f"Unknown xbb b-tag working point 'medium' for campaign {cfg.x.cpn_tag}")
 
   # names of electron correction sets and working points
   # (used in the electron_sf producer)
@@ -653,9 +684,10 @@ def add_config(
   add_variables(cfg)
   add_categories_selection(cfg)
 
-  if year == 2022:
-    from xyh.config.triggers import add_triggers_2022
-    add_triggers_2022(cfg)
+  # TODO: Define and add triggers
+  # if year == 2022:
+  #   from xyh.config.triggers import add_triggers_2022
+  #   add_triggers_2022(cfg)
 
   # only produce cutflow features when number of dataset_files is limited (used in selection module)
   cfg.x.do_cutflow_features = bool(limit_dataset_files) and limit_dataset_files <= 10

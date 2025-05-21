@@ -15,10 +15,10 @@ ak = maybe_import("awkward")
 
 @selector(
   uses={
-    "Electron.pt", "Electron.eta", "Electron.charge",
-    "Muon.pt", "Muon.eta", "Muon.charge",
-    "Electron.mvaIso_WP80", "Electron.mvaIso_WP90",
-    "Muon.mediumId", "Muon.looseId", "Muon.highPtId", "Muon.tkIsoId"
+    "Electron.{pt,eta,phi,charge}",
+    "Muon.{pt,eta,phi,charge}",
+    "Electron.{mvaIso_WP80,mvaIso_WP90}",
+    "Muon.{mediumId,looseId,highPtId,tkIsoId}",
   },
   produces={
     "cutflow.n_mu", "cutflow.n_ele"
@@ -34,6 +34,8 @@ def lepton_selection(
   mu_mask = (
     (events.Muon.pt > 20) &
     (abs(events.Muon.eta) < 2.4) &
+    # TODO: High pT ID or midID?
+    # TODO: pNet ID?
     (events.Muon.highPtId == 2) &
     (events.Muon.tkIsoId == 2)
   )
@@ -47,7 +49,12 @@ def lepton_selection(
   events = set_ak_column(events, "cutflow.n_mu", ak.sum(mu_mask, axis=1))
   events = set_ak_column(events, "cutflow.n_ele", ak.sum(ele_mask, axis=1))
 
-  lep_sel = ((events.cutflow.n_mu == 2) & (events.cutflow.n_ele == 2))
+  # TODO: Maybe veto additional loose leptons
+  # See AZH as a reference
+  lep_sel = (
+    ((events.cutflow.n_mu == 1) & (events.cutflow.n_ele == 0)) |
+    ((events.cutflow.n_mu == 0) & (events.cutflow.n_ele == 1))
+  )
 
   mu_indices = masked_sorted_indices(mu_mask, events.Muon.pt)
   ele_indices = masked_sorted_indices(ele_mask, events.Electron.pt)

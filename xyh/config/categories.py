@@ -34,7 +34,7 @@ def kwargs_fn(categories: dict[str, od.Category]):
     "id": sum(cat.id for cat in categories.values()),
     "selection": [cat.selection for cat in categories.values()],
     "label": "\n".join(
-        cat.label for cat in categories.values()
+      cat.label for cat in categories.values()
     ),
   }
 

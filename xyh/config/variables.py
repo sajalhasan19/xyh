@@ -180,12 +180,12 @@ def add_variables(config: od.Config) -> None:
     )
 
   # Cutflow Variables
-  config.add_variable(
-    name="cf_n_jet",
-    expression="cutflow.n_jet",
-    binning=(11, -0.5, 10.5),
-    x_title=r"Number of jets ($p_{T}$ > 30 GeV, $|\eta| < 2.4$)",
-  )
+  # config.add_variable(
+  #   name="cf_n_jet",
+  #   expression="cutflow.n_jet",
+  #   binning=(11, -0.5, 10.5),
+  #   x_title=r"Number of jets ($p_{T}$ > 30 GeV, $|\eta| < 2.4$)",
+  # )
   config.add_variable(
     name="cf_n_bjet",
     expression="cutflow.n_bjet",
