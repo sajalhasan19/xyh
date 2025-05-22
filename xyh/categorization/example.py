@@ -15,15 +15,9 @@ ak = maybe_import("awkward")
 #
 
 @categorizer(uses={"event"})
-def cat_incl(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
-    # fully inclusive selection
-    return events, ak.ones_like(events.event) == 1
-
-
-@categorizer(uses={"Jet.pt"})
-def cat_2j(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
-    # two or more jets
-    return events, ak.num(events.Jet.pt, axis=1) >= 2
+def catid_incl(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
+  # fully inclusive selection
+  return events, ak.ones_like(events.event) == 1
 
 
 @categorizer(uses={"event"}, call_force=True)
