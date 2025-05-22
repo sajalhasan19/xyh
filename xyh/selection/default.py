@@ -19,16 +19,12 @@ from columnflow.selection.cms.jets import jet_veto_map
 
 from columnflow.production.util import attach_coffea_behavior
 from columnflow.production.cms.mc_weight import mc_weight
-from columnflow.production.categories import category_ids
 from columnflow.production.processes import process_ids
 
 # Here import your selection modules from xyh/selection
 # from xyh.selection.trigger_selection import trigger_selection
 from xyh.selection.lepton_selection import lepton_selection
 from xyh.selection.jet_selection import jet_selection
-
-# Define the categories used in the analysis
-from xyh.config.categories import add_categories_production
 
 
 np = maybe_import("numpy")
@@ -38,13 +34,13 @@ ak = maybe_import("awkward")
 @selector(
   uses={
     process_ids, attach_coffea_behavior,
-    mc_weight, category_ids, increment_stats,
+    mc_weight, increment_stats,
     met_filters, json_filter, jet_veto_map,
     lepton_selection, jet_selection, # trigger_selection
   },
   produces={
     process_ids, attach_coffea_behavior,
-    mc_weight, category_ids, increment_stats,
+    mc_weight, increment_stats,
     met_filters, json_filter, jet_veto_map,
     lepton_selection, jet_selection, # trigger_selection
   },
@@ -88,9 +84,8 @@ def default(
   # events, results_trig = self[trigger_selection](events, **kwargs)
   # results += results_trig
 
-  # Post selection, build process IDs and categories
+  # Post selection build process IDs
   events = self[process_ids](events, **kwargs)
-  events = self[category_ids](events, **kwargs)
 
   # Combine all the selections together to build full evt mask
   results.event = reduce(and_, results.steps.values())
@@ -126,8 +121,8 @@ def default(
 
   return events, results
 
-@default.init
-def default_init(self: Selector) -> None:
-  if not self.config_inst.get_aux("has_categories_sel", False):
-    add_categories_production(self.config_inst)
-    self.config_inst.x.has_categories_sel = True
+# @default.init
+# def default_init(self: Selector) -> None:
+#   if not self.config_inst.get_aux("has_categories_sel", False):
+#     add_categories_production(self.config_inst)
+#     self.config_inst.x.has_categories_sel = True

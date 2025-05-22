@@ -11,9 +11,6 @@ from columnflow.production.normalization import normalization_weights
 from columnflow.util import maybe_import
 from columnflow.columnar_util import set_ak_column
 
-from xyh.config.categories import add_categories_njets
-# TODO : add_categories_bjets
-
 from xyh.production.leptons import leading_lepton
 from xyh.production.prepare_objects import prepare_objects
 # TODO: Add weight producer, i.e. SFs and all
@@ -39,17 +36,17 @@ maybe_import("coffea.nanoevents.methods.nanoaod")
   },
 )
 def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
-  events = self[leading_lepton](events, **kwargs)
-  events = self[prepare_objects](events, **kwargs)
-
   # Build categories
   events = self[category_ids](events, **kwargs)
+
+  events = self[leading_lepton](events, **kwargs)
+  events = self[prepare_objects](events, **kwargs)
 
   events = set_ak_column(events, "event_number", events.event)
 
   return events
 
-@default.init
-def default_init(self: Producer) -> None:
-  # add_categories_bjets(self.config_inst)
-  add_categories_njets(self.config_inst)
+# @default.init
+# def default_init(self: Producer) -> None:
+#   # add_categories_bjets(self.config_inst)
+#   add_categories_njets(self.config_inst)

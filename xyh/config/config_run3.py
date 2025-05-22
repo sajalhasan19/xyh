@@ -21,7 +21,7 @@ from columnflow.production.cms.btag import BTagSFConfig
 from cmsdb.util import add_decay_process
 
 from xyh.config.analysis_xyh import analysis_xyh
-from xyh.config.categories import add_categories_selection
+from xyh.config.categories import add_all_categories
 from xyh.config.variables import add_variables
 from columnflow.config_util import (
     get_root_processes_from_campaign, add_shift_aliases,
@@ -118,10 +118,10 @@ def add_config(
     "tt_fh_powheg",
 
     # # TTV
-    "ttz_zll_m4to50_amcatnlo",
-    "ttz_zll_m50toinf_amcatnlo",
-    "ttz_znunu_amcatnlo",
-    "ttz_zqq_amcatnlo",
+    # "ttz_zll_m4to50_amcatnlo",
+    # "ttz_zll_m50toinf_amcatnlo",
+    # "ttz_znunu_amcatnlo",
+    # "ttz_zqq_amcatnlo",
 
     # # ST
     # TODO: Check these against bbWW
@@ -597,7 +597,7 @@ def add_config(
       for field in ["pt", "eta", "phi", "mass", "genJetIdx", "btagDeepFlavB", "hadronFlavour", "rawFactor"]
     ) | set(  # BJets
       f"{jet_obj}.{field}"
-      for jet_obj in ["BJet"]
+      for jet_obj in ["Bjet"]
       # NOTE: if we run into storage troubles, skip Bjet and Lightjet
       for field in ["pt", "eta", "phi", "mass", "btagDeepFlavB", "hadronFlavour"]
     ) | set(  # Muons
@@ -643,16 +643,9 @@ def add_config(
 
   prod_version = "v1"
 
-  # def reduce_version(cls, inst, params):
-  #     version = dev_version
-  #     if params.get("selector") == "default":
-  #         version = prod_version
-
-  #     return version
-
   # Version of required tasks
   cfg.x.versions = {
-      "cf.CalibrateEvents": "v0",
+      "cf.CalibrateEvents": prod_version, # "v0",
       "cf.SelectEvents": prod_version,
       "cf.MergeSelectionStats": prod_version,
       "cf.MergeSelectionMasks": prod_version,
@@ -665,24 +658,8 @@ def add_config(
 
   # add categories
 
-  # add_category(
-  #     cfg,
-  #     id=1,
-  #     name="incl",
-  #     selection="cat_incl",
-  #     label="inclusive",
-  # )
-
-  # add_category(
-  #     cfg,
-  #     name="2j",
-  #     id=2,
-  #     selection="cat_2j",
-  #     label="2 jets",
-  # )
-
   add_variables(cfg)
-  add_categories_selection(cfg)
+  add_all_categories(cfg)
 
   # TODO: Define and add triggers
   # if year == 2022:
