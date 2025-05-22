@@ -45,9 +45,10 @@ def skip_fn(categories: dict[str, od.Category]):
 
 
 @call_once_on_config()
-def add_categories_selection(config: od.Config) -> None:
-  add_lepton_categories(config)
+def add_all_categories(config: od.Config) -> None:
   add_incl_cat(config)
+  add_lepton_categories(config)
+  add_categories_njets(config)
 
 
 @call_once_on_config()
@@ -66,59 +67,15 @@ def add_lepton_categories(config: od.Config) -> None:
   cat_1e = config.add_category(  # noqa
     name="1e",
     id=10,
-    selection="catid_selection_1e",
+    selection="catid_1e",
     label="1 Electron",
   )
 
   cat_1mu = config.add_category(  # noqa
     name="1mu",
     id=20,
-    selection="catid_selection_1mu",
+    selection="catid_1mu",
     label="1 Muon",
-  )
-
-
-@call_once_on_config()
-def add_categories_production(config: od.Config) -> None:
-  """
-  Adds categories to a *config*, that are typically produced in `ProduceColumns`.
-  """
-
-  cat_1e = config.get_category("1e")
-  cat_1e.selection = "catid_1e"
-
-  cat_1mu = config.get_category("1mu")
-  cat_1mu.selection = "catid_1mu"
-
-
-@call_once_on_config()
-def add_categories_bjets(config: od.Config) -> None:
-  """
-  Adds categories to a *config*, that are typically produced in `ProduceColumns`.
-  """
-
-  #
-  # switch existing categories to different production module
-  #
-  cat_SR = config.add_category(  # noqa
-    name="2bjets",
-    id=3000,
-    selection="catid_2bjets",
-    label=">=2 B-Jets",
-  )
-
-  cat_CR= config.add_category(  # noqa
-    name="1bjets",
-    id=2000,
-    selection="catid_1bjets",
-    label="1 B-Jets",
-  )
-
-  cat_CR= config.add_category(  # noqa
-    name="0bjets",
-    id=1000,
-    selection="catid_0bjets",
-    label="0 B-Jets",
   )
 
 
@@ -127,10 +84,6 @@ def add_categories_njets(config: od.Config) -> None:
   """
   Adds categories to a *config*, that are typically produced in `ProduceColumns`.
   """
-
-  #
-  # switch existing categories to different production module
-  #
 
   cat_SR = config.add_category(  # noqa
     name="4jets",
@@ -158,13 +111,10 @@ def add_categories_njets(config: od.Config) -> None:
       config.get_category(name)
       for name in ["1e", "1mu"]
     ],
-    "b_jets": [
-      config.get_category(name)
-      for name in ["2bjets", "1bjets", "0bjets"]
-    ],
     "jets": [
       config.get_category(name)
       for name in ["5jets", "6jets","4jets"]
     ],
   }
+
   create_category_combinations(config, category_groups, name_fn, kwargs_fn)

@@ -32,7 +32,7 @@ custom_collections = {
     "check_attr": "metric_table",
     "skip_fields": "*Idx*G",
   },
-  "BJet": {
+  "Bjet": {
     "type_name": "Jet",  # is there some other collection?
     "check_attr": "metric_table",
     "skip_fields": "*Idx*G",
@@ -48,7 +48,7 @@ custom_collections = {
     "Electron.{pt,eta,phi,mass}",
     "Muon.{pt,eta,phi,mass}",
     "Leptons.{pt,eta,phi,mass}",
-    "Jet", "BJet",
+    "Jet", "Bjet",
     leading_lepton,
   },
   # no produces since we do not want to permanently produce columns
