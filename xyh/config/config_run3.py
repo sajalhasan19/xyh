@@ -289,22 +289,26 @@ def add_config(
   jet_type = "AK4PFPuppi"
 
   cfg.x.jec = DotDict.wrap({
-    "campaign": jerc_campaign,
-    "version": {2016: "V7", 2017: "V5", 2018: "V5", 2022: "V2"}[year],
-    "jet_type": jet_type,
-    "levels": ["L1FastJet", "L2Relative", "L2L3Residual", "L3Absolute"],
-    "levels_for_type1_met": ["L1FastJet"],
-    "uncertainty_sources": [
-        "Total",
-    ],
+    "Jet": {
+      "campaign": jerc_campaign,
+      "version": {2016: "V7", 2017: "V5", 2018: "V5", 2022: "V2"}[year],
+      "jet_type": jet_type,
+      "levels": ["L1FastJet", "L2Relative", "L2L3Residual", "L3Absolute"],
+      "levels_for_type1_met": ["L1FastJet"],
+      "uncertainty_sources": [
+          "Total",
+      ],
+    },
   })
 
   # JER
   # https://twiki.cern.ch/twiki/bin/view/CMS/JetResolution?rev=107
   cfg.x.jer = DotDict.wrap({
-    "campaign": jerc_campaign,
-    "version": {2022: "JRV1"}[year],
-    "jet_type": jet_type,
+    "Jet": {
+      "campaign": jerc_campaign,
+      "version": {2022: "JRV1"}[year],
+      "jet_type": jet_type,
+    },
   })
 
   # JEC uncertainty sources propagated to btag scale factors
