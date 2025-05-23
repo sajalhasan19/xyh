@@ -32,7 +32,7 @@ def lepton_selection(
 ) -> Tuple[ak.Array, SelectionResult]:
 	
   mu_mask = (
-    (events.Muon.pt > 20) &
+    (events.Muon.pt > 10) &
     (abs(events.Muon.eta) < 2.4) &
     # TODO: High pT ID or midID?
     # TODO: pNet ID?

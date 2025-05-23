@@ -49,7 +49,8 @@ def add_all_categories(config: od.Config) -> None:
   add_incl_cat(config)
   add_lepton_categories(config)
   add_categories_njets(config)
-
+  add_categories_bjets(config)
+  add_combo_categories(config)
 
 @call_once_on_config()
 def add_incl_cat(config: od.Config) -> None:
@@ -85,31 +86,62 @@ def add_categories_njets(config: od.Config) -> None:
   Adds categories to a *config*, that are typically produced in `ProduceColumns`.
   """
 
-  cat_SR = config.add_category(  # noqa
+  cat_4j = config.add_category(  # noqa
     name="4jets",
-    id=30000,
+    id=300,
     selection="catid_4jets",
     label="4 Jets",
   )
 
-  cat_SR = config.add_category(  # noqa
+  cat_5j = config.add_category(  # noqa
     name="5jets",
-    id=10000,
+    id=100,
     selection="catid_5jets",
     label="5 Jets",
   )
 
-  cat_CR= config.add_category(  # noqa
+  cat_6j = config.add_category(  # noqa
     name="6jets",
-    id=20000,
+    id=200,
     selection="catid_6jets",
     label="6 or more Jets",
   )
 
+
+@call_once_on_config()
+def add_categories_bjets(config: od.Config) -> None:
+  cat_0bj = config.add_category(
+    name="0bjet",
+    id=1000,
+    selection="catid_0bjet",
+    label="0 b-jets",
+  )
+
+  cat_1bj = config.add_category(
+    name="1bjet",
+    id=2000,
+    selection="catid_1bjet",
+    label="1 b-jet",
+  )
+
+  cat_2bj = config.add_category(
+    name="2bjets",
+    id=3000,
+    selection="catid_2bjets",
+    label="2 b-jets",
+  )
+
+
+@call_once_on_config()
+def add_combo_categories(config: od.Config) -> None:
   category_groups = {
     "lepton": [
       config.get_category(name)
       for name in ["1e", "1mu"]
+    ],
+    "bjets": [
+      config.get_category(name)
+      for name in ["0bjet", "1bjet", "2bjets"]
     ],
     "jets": [
       config.get_category(name)

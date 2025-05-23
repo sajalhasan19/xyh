@@ -26,6 +26,7 @@ maybe_import("coffea.nanoevents.methods.nanoaod")
     category_ids, normalization_weights,
     prepare_objects, leading_lepton,
     "Jet.{pt,eta,phi,mass,rawFactor,btagDeepFlavB}",
+    "Bjet.{pt,eta,phi}",
     "MET.{pt,phi}",
     "process_id"
   },

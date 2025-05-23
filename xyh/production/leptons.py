@@ -33,11 +33,9 @@ def leading_lepton(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
   # extract only LV columns, take leading Ele and Mu in collection
   muon = events.Muon[["pt", "eta", "phi", "mass", "pdgId"]]
   electron = events.Electron[["pt", "eta", "phi", "mass", "pdgId"]]
-  # Select only 1e or 1mu events, ie events with `category_ids==20` or `10`
-  leptons = ak.concatenate([
-    ak.mask(muon, (ak.pad_none(events.category_ids, 1) == 20)[:, 0]),
-    ak.mask(electron, (ak.pad_none(events.category_ids, 1) == 10)[:, 0]),
-  ], axis=1)
+  # Select only 1e or 1mu events
+  # Since the selection step already keeps only these events, no need to filter based on cat_id
+  leptons = ak.concatenate([muon, electron], axis=1)
 
   # attach lorentz vector behavior to lepton
   leptons = ak.with_name(leptons, "PtEtaPhiMLorentzVector")

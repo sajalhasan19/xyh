@@ -13,28 +13,6 @@ np = maybe_import("numpy")
 ak = maybe_import("awkward")
 
 
-def add_feature_variables(config: od.Config) -> None:
-  """
-  Adds variables to a *config* that are produced as part of the `features` producer.
-  """
-
-  # Event properties
-  config.add_variable(
-    name="n_jet",
-    binning=(12, -0.5, 11.5),
-    x_title="Number of jets",
-    discrete_x=True,
-  )
-
-  # jj features
-  config.add_variable(
-    name="deltaR_jj",
-    binning=(40, 0, 5),
-    x_title=r"$\Delta R(j_{1},j_{2})$",
-  )
-
-
-
 def add_variables(config: od.Config) -> None:
   """
   Adds all variables to a *config* that are present after `ReduceEvents`
@@ -92,17 +70,19 @@ def add_variables(config: od.Config) -> None:
 
   config.add_variable(
     name="n_jets",
-    expression="n_jets",
+    expression=lambda events: ak.num(events.Jet["pt"], axis=1),
+    aux={"inputs": {"Jet.pt"}},
     binning=(12, -0.5, 11.5),
-    unit="GeV",
+    discrete_x=True,
     x_title="Number of jets",
   )
 
   config.add_variable(
     name="n_bjets",
-    expression="n_bjets",
+    expression=lambda events: ak.num(events.Bjet["pt"], axis=1),
+    aux={"inputs": {"Bjet.pt"}},
     binning=(5, -0.5, 4.5),
-    unit="GeV",
+    discrete_x=True,
     x_title="Number of bjets",
   )
 
