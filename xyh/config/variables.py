@@ -87,6 +87,15 @@ def add_variables(config: od.Config) -> None:
   )
 
   config.add_variable(
+    name="n_leps",
+    expression=lambda events: ak.num(events.Leptons["pt"], axis=1),
+    aux={"inputs": {"Leptons.pt"}},
+    binning=(5, -0.5, 4.5),
+    discrete_x=True,
+    x_title="Number of leptons",
+  )
+
+  config.add_variable(
     name="jets_btag",
     expression="Jet.btagDeepFlavB",
     binning=(20, 0, 1),
@@ -166,12 +175,12 @@ def add_variables(config: od.Config) -> None:
   #   binning=(11, -0.5, 10.5),
   #   x_title=r"Number of jets ($p_{T}$ > 30 GeV, $|\eta| < 2.4$)",
   # )
-  config.add_variable(
-    name="cf_n_bjet",
-    expression="cutflow.n_bjet",
-    binning=(11, -0.5, 10.5),
-    x_title=r"Number of b-taggeg jets ($p_{T}$ > 30 GeV, $|\eta| < 2.4$)",
-  )
+  # config.add_variable(
+  #   name="cf_n_bjet",
+  #   expression="cutflow.n_bjet",
+  #   binning=(11, -0.5, 10.5),
+  #   x_title=r"Number of b-taggeg jets ($p_{T}$ > 30 GeV, $|\eta| < 2.4$)",
+  # )
   config.add_variable(
     name="cf_n_ele",
     expression="cutflow.n_ele",
