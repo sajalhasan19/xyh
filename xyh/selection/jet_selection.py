@@ -107,14 +107,15 @@ def jet_selection(
   btag_mask = (jet_mask) & (b_score >= self.config_inst.x.btag_wp_score)
 
   # add btag steps
-  events = set_ak_column(events, "cutflow.n_btag", ak.sum(btag_mask, axis=1))
-  steps["nBjet1"] = events.cutflow.n_btag >= 1
-  steps["nBjet2"] = events.cutflow.n_btag >= 2
-  if self.config_inst.x("n_btag", 0) > 2:
-    steps[f"nBjet{self.config_inst.x.n_btag}"] = events.cutflow.n_btag >= self.config_inst.x.n_btag
+  # events = set_ak_column(events, "cutflow.n_btag", ak.sum(btag_mask, axis=1))
+  # steps["nBjet1"] = events.cutflow.n_btag >= 1
+  # steps["nBjet2"] = events.cutflow.n_btag >= 2
+  # if self.config_inst.x("n_btag", 0) > 2:
+  #  steps[f"nBjet{self.config_inst.x.n_btag}"] = events.cutflow.n_btag >= self.config_inst.x.n_btag
 
   # define b-jets as the two b-score leading jets, b-score sorted
-  bjet_indices = masked_sorted_indices(jet_mask, b_score)[:, :2]
+  bjet_indices = masked_sorted_indices(btag_mask, events.Jet.pt)
+  # masked_sorted_indices(jet_mask, b_score)[:, :2]
 
   # define lightjets as all non b-jets, pt-sorted
   b_idx = ak.fill_none(ak.pad_none(bjet_indices, 2), -1)
@@ -134,6 +135,7 @@ def jet_selection(
     aux={
       "jet_mask": jet_mask,
       "n_central_jets": ak.num(jet_indices),
+      # "n_jets": ak.sum(jet_mask, axis=1),
       "ht": ak.sum(events.Jet.pt[jet_mask], axis=1),
     },
   )
@@ -160,14 +162,14 @@ def jet_selection_init(self: Selector) -> None:
     "nJet2": r"$N_{jets}^{AK4} \geq 2$",
     "nJet3": r"$N_{jets}^{AK4} \geq 3$",
     "nJet4": r"$N_{jets}^{AK4} \geq 4$",
-    "nBjet1": r"$N_{jets}^{BTag} \geq 1$",
-    "nBjet2": r"$N_{jets}^{BTag} \geq 2$",
+    # "nBjet1": r"$N_{jets}^{BTag} \geq 1$",
+    # "nBjet2": r"$N_{jets}^{BTag} \geq 2$",
   })
 
   if self.config_inst.x("do_cutflow_features", False):
     # add cutflow features to *produces* only when requested
     self.produces.add("cutflow.n_jet")
-    self.produces.add("cutflow.n_btag")
+    # self.produces.add("cutflow.n_btag")
 
     @call_once_on_config
     def add_jet_cutflow_variables(config: od.Config):
@@ -178,13 +180,13 @@ def jet_selection_init(self: Selector) -> None:
         x_title="Number of jets",
         discrete_x=True,
       )
-      config.add_variable(
-        name="cf_n_btag",
-        expression="cutflow.n_btag",
-        binning=(7, -0.5, 6.5),
-        x_title=f"Number of b-tagged jets ({self.config_inst.x.b_tagger}, {self.config_inst.x.btag_wp} WP)",
-        discrete_x=True,
-      )
+      # config.add_variable(
+      #   name="cf_n_btag",
+      #   expression="cutflow.n_btag",
+      #   binning=(7, -0.5, 6.5),
+      #   x_title=f"Number of b-tagged jets ({self.config_inst.x.b_tagger}, {self.config_inst.x.btag_wp} WP)",
+      #   discrete_x=True,
+      # )
 
     add_jet_cutflow_variables(self.config_inst)
 
