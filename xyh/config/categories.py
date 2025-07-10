@@ -128,7 +128,7 @@ def add_categories_bjets(config: od.Config) -> None:
     name="2bjets",
     id=3000,
     selection="catid_2bjets",
-    label="2 b-jets",
+    label="2 or more b-jets",
   )
 
 
@@ -145,7 +145,7 @@ def add_combo_categories(config: od.Config) -> None:
     ],
     "jets": [
       config.get_category(name)
-      for name in ["5jets", "6jets","4jets"]
+      for name in ["4jets", "5jets", "6jets"]
     ],
   }
 

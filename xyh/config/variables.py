@@ -26,7 +26,7 @@ def add_variables(config: od.Config) -> None:
     expression="event",
     binning=(1, 0.0, 1.0e9),
     x_title="Event number",
-    discrete_x=True,
+    discrete_x=False,
   )
   config.add_variable(
     name="run",
@@ -167,6 +167,33 @@ def add_variables(config: od.Config) -> None:
       binning=(40, -3.2, 3.2),
       x_title=r"Lepton %i $\phi$" % (i + 1),
     )
+
+  config.add_variable(
+      name=f"wlnu_mass",
+      expression="mlnu",
+      null_value=EMPTY_FLOAT,
+      binning=(40, 0., 400.),
+      unit="GeV",
+      x_title=r"$m_{l\nu}$",
+  )
+
+  config.add_variable(
+      name="wlnu_mt",
+      expression="mtlnu",
+      null_value=EMPTY_FLOAT,
+      binning=(40, 0., 400.),
+      unit="GeV",
+      x_title=r"$m^{T}_{l\nu}$",
+  )
+
+  config.add_variable(
+      name="wlnu_pt",
+      expression="wboson.pt",
+      null_value=EMPTY_FLOAT,
+      binning=(40, 0., 400.),
+      unit="GeV",
+      x_title=r"$p^{T}_{l\nu}$",
+  )
 
   # Cutflow Variables
   # config.add_variable(
