@@ -12,6 +12,8 @@ from typing import Tuple
 import law
 import order as od
 
+import functools
+
 from columnflow.util import maybe_import, DotDict
 from columnflow.columnar_util import set_ak_column, optional_column as optional
 from columnflow.selection import Selector, SelectionResult, selector
@@ -20,8 +22,11 @@ from columnflow.production.cms.jet import jet_id, fatjet_id
 from xyh.util import masked_sorted_indices, call_once_on_config, IF_NANO_V12, IF_NANO_geV13
 from xyh.production.jets import jetId_v12 # , fatjetId_v12
 
-np = maybe_import("numpy")
 ak = maybe_import("awkward")
+np = maybe_import("numpy")
+
+set_ak_column_f32 = functools.partial(set_ak_column, value_type=np.float32)
+
 
 logger = law.logger.get_logger(__name__)
 
@@ -117,9 +122,47 @@ def jet_selection(
   bjet_indices = masked_sorted_indices(btag_mask, events.Jet.pt)
   # masked_sorted_indices(jet_mask, b_score)[:, :2]
 
+  # from IPython import embed; embed()
+
   # define lightjets as all non b-jets, pt-sorted
   b_idx = ak.fill_none(ak.pad_none(bjet_indices, 2), -1)
   lightjet_indices = jet_indices[(jet_indices != b_idx[:, 0]) & (jet_indices != b_idx[:, 1])]
+
+  # from IPython import embed; embed()
+
+  # print("lightjet_indices = ", lightjet_indices)
+  
+  # lightjets = events.Jet[lightjet_indices]
+  
+  # print("lightjets = ", lightjets)
+  
+  # events = set_ak_column_f32(events, "lightjets", lightjets)
+  
+  # print("lightjets events = ", events.lightjets)
+  
+
+  
+
+
+  # lightjets = events.Jet[lightjet_indices]
+
+  # events = set_ak_column(events, "lightjets", lightjets)
+  
+  # print("lightjets = ", events.lightjets)
+  
+  # # print("lightjets_pt = ", events.lightjets.pt)
+  
+  # lv_lightjets = ak.zip({
+  #     "pt": events.lightjets.pt,
+  #     "eta": events.lightjets.eta,
+  #     "phi": events.lightjets.phi,
+  #     "mass": events.lightjets.mass,
+  # }, with_name="PtEtaPhiMLorentzVector")
+    
+  # events = set_ak_column_f32(events, "lv_lightjets", lv_lightjets)
+  
+  # print("lv_lightjets = ", events.lv_lightjets)  
+  
 
   # build and return selection results plus new columns
   return events, SelectionResult(
@@ -137,13 +180,15 @@ def jet_selection(
       "n_central_jets": ak.num(jet_indices),
       # "n_jets": ak.sum(jet_mask, axis=1),
       "ht": ak.sum(events.Jet.pt[jet_mask], axis=1),
+      "Lightjet": lightjet_indices,
     },
+    exposed=True,
   )
 
 @jet_selection.init
 def jet_selection_init(self: Selector) -> None:
   # configuration of defaults
-  self.jet_pt = self.config_inst.x("jet_pt", 25)
+  self.jet_pt = self.config_inst.x("jet_pt", 30)
 
   # Add shift dependencies
   self.shifts |= {

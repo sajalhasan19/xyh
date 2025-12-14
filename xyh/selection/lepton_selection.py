@@ -32,7 +32,8 @@ def lepton_selection(
 ) -> Tuple[ak.Array, SelectionResult]:
 	
   mu_mask = (
-    (events.Muon.pt > 10) &
+    # Align muon pT with available trigger thresholds
+    (events.Muon.pt > 30) &
     (abs(events.Muon.eta) < 2.4) &
     # TODO: High pT ID or midID?
     # TODO: pNet ID?
@@ -41,7 +42,8 @@ def lepton_selection(
   )
 
   ele_mask = (
-    (events.Electron.pt > 20) &
+    # Keep electron selection symmetric with muons and trigger turn-on
+    (events.Electron.pt > 30) &
     (abs(events.Electron.eta) < 2.4) &
     (events.Electron.mvaIso_WP80)
   )

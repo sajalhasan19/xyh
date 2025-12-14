@@ -62,6 +62,7 @@ ana.x.store_parts_modifiers = {}
 from xyh.config.config_run3 import add_config
 # from cmsdb.campaigns.run2_2017_nano_v9 import campaign_run2_2017_nano_v9
 import cmsdb.campaigns.run3_2022_preEE_nano_v12
+import cmsdb.campaigns.run3_2022_postEE_nano_v12
 
 # copy the campaign
 # (creates copies of all linked datasets, processes, etc. to allow for encapsulated customization)
@@ -80,5 +81,22 @@ config_2022pre_limited = add_config(
   campaign_run3_2022_preEE_nano_v12.copy(),
   config_name="config_2022pre_limited",
   config_id=12,
+  limit_dataset_files=1,
+)
+
+campaign_run3_2022_postEE_nano_v12 = cmsdb.campaigns.run3_2022_postEE_nano_v12.campaign_run3_2022_postEE_nano_v12
+campaign_run3_2022_postEE_nano_v12.x.EE = "post"
+
+config_2022post = add_config(
+  analysis_xyh,
+  campaign_run3_2022_postEE_nano_v12.copy(),
+  config_name="config_2022post",
+  config_id=2,
+)
+config_2022post_limited = add_config(
+  analysis_xyh,
+  campaign_run3_2022_postEE_nano_v12.copy(),
+  config_name="config_2022post_limited",
+  config_id=13,
   limit_dataset_files=1,
 )

@@ -26,6 +26,10 @@ from xyh.config.variables import add_variables
 from columnflow.config_util import (
     get_root_processes_from_campaign, add_shift_aliases,
 )
+from xyh.inference.signals import (
+    XYH_SIGNAL_PROCESSES,
+    XYH_SIGNAL_DATASETS,
+)
 
 
 thisdir = os.path.dirname(os.path.abspath(__file__))
@@ -63,6 +67,7 @@ def add_config(
   # create a config by passing the campaign, so id and name will be identical
   cfg = analysis_xyh.add_config(campaign, name=config_name, id=config_id)
   cfg.x.run = cfg.campaign.x.run
+  cfg.x.jet_pt = 30
 
   colors = {
     "dy": "#FBFF36",
@@ -71,6 +76,11 @@ def add_config(
     "ttv": "#5E8FFC",  # blue
     "w_lnu": "#82FF28",  # green
     "st": "#3E00FB",  # dark purple
+    "ttvv": "#A020F0",  # purple
+    "xyh": "#000000",  # default for signal hypotheses
+    "ww": "#FFAA00",  # orange
+    "wz": "#00AAAA",  # cyan
+    "zz": "#FF00FF",  # magenta
   }
 
   # add datasets we need to study
@@ -78,15 +88,35 @@ def add_config(
     "dy",
     "tt",
     "ttv",
+    "ttvv",
     "st",
     "w_lnu",
     "data",
+    "ww",
+    "wz",
+    "zz",
   ]
 
+  process_names.extend(XYH_SIGNAL_PROCESSES)
+  signal_processes: list[str] = []
+  background_processes: list[str] = []
+
   for process_name in process_names:
-    cfg.add_process(procs.get(process_name))
-    cfg.get_process(process_name).color1 = colors.get(process_name, "#aaaaaa")
-    cfg.get_process(process_name).color2 = colors.get(process_name, "#000000")
+    process_obj = procs.get(process_name, default=None)
+    if process_obj is None:
+      if process_name.startswith("xyh_sl_"):
+        continue
+      raise ValueError(f"Process '{process_name}' not defined in campaign '{campaign.name}'")
+    cfg.add_process(process_obj)
+    color_key = "xyh" if process_name.startswith("xyh_sl_") else process_name
+    cfg.get_process(process_name).color1 = colors.get(color_key, "#aaaaaa")
+    cfg.get_process(process_name).color2 = colors.get(color_key, "#000000")
+    if process_name.startswith("xyh_sl_"):
+      if process_name not in signal_processes:
+        signal_processes.append(process_name)
+    elif process_name != "data":
+      if process_name not in background_processes:
+        background_processes.append(process_name)
 
   def _match_era(
     *,
@@ -125,17 +155,21 @@ def add_config(
 
     # # ST
     # TODO: Check these against bbWW
-    "st_tchannel_t_4f_powheg",
-    "st_twchannel_tbar_sl_powheg",
+    "st_tchannel_tbar_4f_powheg",
+    "st_tchannel_t_4f_powheg",  
     "st_twchannel_t_dl_powheg",
+    "st_twchannel_t_fh_powheg",
     "st_twchannel_t_sl_powheg",
+    "st_twchannel_tbar_fh_powheg",
+    "st_twchannel_tbar_sl_powheg",
+    "st_twchannel_tbar_dl_powheg",
 
     # # DY
     # NLO Samples
     # TODO: Implement stitching
-    "dy_m50toinf_amcatnlo",
+    #"dy_m50toinf_amcatnlo",
     "dy_m10to50_amcatnlo",
-    "dy_m4to10_amcatnlo",
+    #"dy_m4to10_amcatnlo",
     "dy_m50toinf_0j_amcatnlo",
     "dy_m50toinf_1j_amcatnlo",
     "dy_m50toinf_2j_amcatnlo",
@@ -143,6 +177,19 @@ def add_config(
     # # VV
     "zz_pythia",
     "ww_pythia",
+    "wz_pythia",
+
+    # # TTV
+    "ttz_zqq_1j_amcatnlo",
+
+    # # TTVV
+    "ttww_madgraph",
+    "ttzz_madgraph",
+
+    # # WLNU
+    "w_lnu_amcatnlo",
+
+
 
     # # Data
     # # Double Muon
@@ -165,9 +212,18 @@ def add_config(
     ]),
   ]
 
+  dataset_names.extend(XYH_SIGNAL_DATASETS)
+
+  signal_datasets: list[str] = []
+  background_datasets: list[str] = []
 
   for dataset_name in dataset_names:
-    dataset = cfg.add_dataset(campaign.get_dataset(dataset_name))
+    dataset_obj = campaign.datasets.get(dataset_name, default=None)
+    if dataset_obj is None:
+      if dataset_name.startswith("xyh_sl_"):
+        continue
+      raise ValueError(f"Dataset '{dataset_name}' not defined in campaign '{campaign.name}'")
+    dataset = cfg.add_dataset(dataset_obj)
     if limit_dataset_files:
       # apply optional limit on the max. number of files per dataset
       for info in dataset.info.values():
@@ -177,6 +233,12 @@ def add_config(
       dataset.add_tag({"is_ttbar"})
     if dataset.name.startswith("dy"):
       dataset.add_tag({"is_dy"})
+    if dataset.name.startswith("xyh_sl_"):
+      if dataset.name not in signal_datasets:
+        signal_datasets.append(dataset.name)
+    elif not dataset.name.startswith("data_"):
+      if dataset.name not in background_datasets:
+        background_datasets.append(dataset.name)
     # TODO: Add signal
 
 
@@ -186,21 +248,129 @@ def add_config(
   cfg.x.default_producer = "default"
   cfg.x.default_weight_producer = "all_weights"
   cfg.x.default_ml_model = None
-  cfg.x.default_inference_model = "example"
+  cfg.x.default_inference_model = "xyh_limits"
   cfg.x.default_categories = ["cat_incl"]
   cfg.x.default_variables = ["jet1_pt"]
+
+  cfg.x.default_bins_per_category = {
+    # categories
+    "1lep__2bjets__4jets": 3,
+    "1lep__2bjets__5jets": 3,
+    "1lep__2bjets__6jets": 3,
+    "1lep__2bjets__g6jets": 3,
+    "1lep__3bjets__4jets": 4,
+    "1lep__3bjets__5jets": 4,
+    "1lep__3bjets__6jets": 4,
+    "1lep__3bjets__g6jets": 4,
+    "1lep__4bjets__5jets": 5,
+    "1lep__ge4bjets__ge6jets": 5,
+    # # muon categories
+    # "1mu__2bjets__4jets": 3,
+    # "1mu__2bjets__5jets": 3,
+    # "1mu__2bjets__6jets": 3,
+    # "1mu__2bjets__g6jets": 3,
+    # "1mu__3bjets__4jets": 4,
+    # "1mu__3bjets__5jets": 4,
+    # "1mu__3bjets__6jets": 4,
+    # "1mu__3bjets__g6jets": 4,
+    # "1mu__4bjets__5jets": 5,
+    # "1mu__4bjets__6jets": 5,
+    # "1mu__4bjets__g6jets": 5,
+    # "1mu__5bjets__6jets": 2,
+    # "1mu__5bjets__g6jets": 2,
+  }
+
+  # disable histogram blinding during rebinning to optimize bin edges for MC-only studies
+  cfg.x.disable_rebin_blinding = True
+
+  # cfg.x.min_bkg_events_per_category = {
+  #   # 2b control regions: keep bins smooth
+  #   "1e__2bjets__4jets": 30,
+  #   "1e__2bjets__5jets": 30,
+  #   "1e__2bjets__6jets": 20,
+  #   "1e__2bjets__g6jets": 20,
+  #   "1mu__2bjets__4jets": 30,
+  #   "1mu__2bjets__5jets": 30,
+  #   "1mu__2bjets__6jets": 20,
+  #   "1mu__2bjets__g6jets": 20,
+  #   # 3b categories
+  #   "1e__3bjets__4jets": 15,
+  #   "1e__3bjets__5jets": 12,
+  #   "1e__3bjets__6jets": 8,
+  #   "1e__3bjets__g6jets": 8,
+  #   "1mu__3bjets__4jets": 15,
+  #   "1mu__3bjets__5jets": 12,
+  #   "1mu__3bjets__6jets": 8,
+  #   "1mu__3bjets__g6jets": 8,
+  #   # 4b / 5b signal-rich categories allow almost empty bins
+  #   "1e__4bjets__5jets": 2,
+  #   "1e__4bjets__6jets": 2,
+  #   "1e__4bjets__g6jets": 2,
+  #   "1mu__4bjets__5jets": 2,
+  #   "1mu__4bjets__6jets": 2,
+  #   "1mu__4bjets__g6jets": 1,
+  #   "1e__5bjets__6jets": 1,
+  #   "1e__5bjets__g6jets": 1,
+  #   "1mu__5bjets__6jets": 1,
+  #   "1mu__5bjets__g6jets": 1,
+  # }
+
+
+  is_xyh_signal = lambda proc_name: proc_name.startswith("xyh_sl_")
+  is_xyh_background = lambda proc_name: proc_name.upper() in {"TT", "DY", "ST", "WJETS", "TTV", "TTVV", "VV"}
+  only_process = lambda target: (lambda proc_name: proc_name.lower() == target.lower())
+
+  background_rebin_categories = [
+    "1lep__2bjets__4jets",
+    "1lep__2bjets__5jets",
+    "1lep__2bjets__6jets",
+    "1lep__2bjets__g6jets",
+    "1lep__3bjets__4jets",
+    "1lep__3bjets__5jets",
+  ]
+
+  signal_rebin_categories = [
+    "1lep__3bjets__6jets",
+    "1lep__3bjets__g6jets",
+    "1lep__4bjets__5jets",
+    "1lep__ge4bjets__ge6jets",
+  ]
+
+  cfg.x.inference_category_rebin_processes = {
+    **{cat: is_xyh_background for cat in background_rebin_categories},
+    **{cat: is_xyh_signal for cat in signal_rebin_categories},
+  }
+
+  tt_control_rebin_categories = [
+    "1lep__2bjets__4jets",
+    "1lep__2bjets__5jets",
+    "1lep__2bjets__6jets",
+    "1lep__2bjets__g6jets",
+  ]
+  for cat in tt_control_rebin_categories:
+    cfg.x.inference_category_rebin_processes[cat] = only_process("tt")
+
+
 
   # process groups for conveniently looping over certain processs
   # (used in wrapper_factory and during plotting)
   cfg.x.process_groups = {
     "all": ["*"],
   }
+  if background_processes:
+    cfg.x.process_groups["background"] = background_processes
+  if signal_processes:
+    cfg.x.process_groups["signals"] = signal_processes
 
   # dataset groups for conveniently looping over certain datasets
   # (used in wrapper_factory and during plotting)
   cfg.x.dataset_groups = {
     "all": ["*"],
   }
+  if background_datasets:
+    cfg.x.dataset_groups["background"] = background_datasets
+  if signal_datasets:
+    cfg.x.dataset_groups["signals"] = signal_datasets
 
   # category groups for conveniently looping over certain categories
   # (used during plotting)
@@ -528,7 +698,7 @@ def add_config(
     "btag_sf_corr": (f"{json_mirror}/POG/BTV/{corr_tag}/btagging.json.gz", "v1"),
 
     # V+jets reweighting
-    "vjets_reweighting": f"{local_repo}/data/json/vjets_reweighting.json.gz",
+    #"vjets_reweighting": f"{local_repo}/data/json/vjets_reweighting.json.gz",
 
     # jet veto map
     "jet_veto_map": (f"{json_mirror}/POG/JME/{corr_tag}/jetvetomaps.json.gz", "v1")
@@ -604,6 +774,11 @@ def add_config(
       for jet_obj in ["Bjet"]
       # NOTE: if we run into storage troubles, skip Bjet and Lightjet
       for field in ["pt", "eta", "phi", "mass", "btagDeepFlavB", "hadronFlavour"]
+    ) | set(  # Lightjets
+      f"{jet_obj}.{field}"
+      for jet_obj in ["Lightjet"]
+      # NOTE: if we run into storage troubles, skip Bjet and Lightjet
+      for field in ["pt", "eta", "phi", "mass", "genJetIdx", "btagDeepFlavB", "hadronFlavour", "rawFactor"]
     ) | set(  # Muons
       f"{mu_obj}.{field}"
       for mu_obj in ["Muon"]
@@ -672,4 +847,40 @@ def add_config(
 
   # only produce cutflow features when number of dataset_files is limited (used in selection module)
   cfg.x.do_cutflow_features = bool(limit_dataset_files) and limit_dataset_files <= 10
+
+  # custom plotting style groups used throughout the analysis
+  cfg.x.custom_style_config_groups = {
+      "default": {
+          "legend_cfg": {
+              "ncols": 2,
+              "fontsize": 16,
+              "bbox_to_anchor": (0.0, 0.0, 1.0, 1.0),
+              "loc": "upper center",
+          },
+          "annotate_cfg": {
+              "xy": (0.05, 0.95),
+              "xycoords": "axes fraction",
+              "fontsize": 16,
+          },
+      },
+      "legend_single_col": {
+          "legend_cfg": {"ncols": 1, "fontsize": 20},
+      },
+      "small_legend": {
+          "legend_cfg": {"ncols": 2, "fontsize": 16},
+      },
+      "no_cat_label": {
+          "legend_cfg": {"ncols": 2, "fontsize": 20},
+          "annotate_cfg": {"text": ""},
+      },
+      "signals": {
+          "legend_cfg": {"ncols": 2, "fontsize": 12},
+      },
+      "example": {
+          "legend_cfg": {"title": "my custom legend title", "ncols": 2},
+          "ax_cfg": {"ylabel": "my ylabel", "xlim": (0, 100)},
+          "rax_cfg": {"ylabel": "some other ylabel"},
+          "annotate_cfg": {"text": "category label usually here"},
+      },
+  }
   return cfg

@@ -3,3 +3,4 @@
 
 # provisioning imports
 import xyh.tasks.base
+import xyh.tasks.inference

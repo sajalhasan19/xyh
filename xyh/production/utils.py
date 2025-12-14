@@ -37,3 +37,6 @@ lv_xyzt =  partial(_lv_base, fields=["x", "y", "z", "t"], with_name="LorentzVect
 lv_mass = partial(_lv_base, fields=["pt", "eta", "phi", "mass"], with_name="PtEtaPhiMLorentzVector")
 
 lv_energy = partial(_lv_base, fields=["pt", "eta", "phi", "energy"], with_name="PtEtaPhiELorentzVector")
+
+# def compute_energy(pt, eta, mass):
+#     return np.sqrt(pt**2 * np.cosh(eta)**2 + mass**2)

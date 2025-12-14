@@ -9,8 +9,12 @@ from __future__ import annotations
 from functools import partial
 
 from columnflow.production import Producer, producer
+from columnflow.production.categories import category_ids
 from columnflow.util import maybe_import
 from columnflow.columnar_util import set_ak_column
+
+
+from xyh.production.prepare_objects import prepare_objects
 
 ak = maybe_import("awkward")
 np = maybe_import("numpy")

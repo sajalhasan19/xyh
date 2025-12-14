@@ -58,7 +58,7 @@ def add_incl_cat(config: od.Config) -> None:
     name="cat_incl",
     id=1,
     selection="catid_incl",
-    label="Inclusive",
+    label="Incl",
   )
 
 
@@ -69,14 +69,21 @@ def add_lepton_categories(config: od.Config) -> None:
     name="1e",
     id=10,
     selection="catid_1e",
-    label="1 Electron",
+    label="1 e",
   )
 
   cat_1mu = config.add_category(  # noqa
     name="1mu",
     id=20,
     selection="catid_1mu",
-    label="1 Muon",
+    label="1 mu",
+  )
+
+  cat_1lep = config.add_category(  # noqa
+    name="1lep",
+    id=30,
+    selection="catid_1lep",
+    label="1 lep",
   )
 
 
@@ -90,21 +97,49 @@ def add_categories_njets(config: od.Config) -> None:
     name="4jets",
     id=300,
     selection="catid_4jets",
-    label="4 Jets",
+    label="4j",
+  )
+
+  cat_ge4j = config.add_category(  # noqa
+    name="ge4jets",
+    id=400,
+    selection="catid_ge4jets",
+    label=">=4j",
   )
 
   cat_5j = config.add_category(  # noqa
     name="5jets",
     id=100,
     selection="catid_5jets",
-    label="5 Jets",
+    label="5j",
+  )
+
+  cat_g6j = config.add_category(  # noqa
+    name="g6jets",
+    id=700,
+    selection="catid_g6jets",
+    label=">6j",
+  )
+
+  cat_ge5j = config.add_category(  # noqa
+    name="ge5jets",
+    id=500,
+    selection="catid_ge5jets",
+    label=">=5j",
   )
 
   cat_6j = config.add_category(  # noqa
     name="6jets",
     id=200,
     selection="catid_6jets",
-    label="6 or more Jets",
+    label="6j",
+  )
+
+  cat_ge6j = config.add_category(  # noqa
+    name="ge6jets",
+    id=600,
+    selection="catid_ge6jets",
+    label=">=6j",
   )
 
 
@@ -128,7 +163,70 @@ def add_categories_bjets(config: od.Config) -> None:
     name="2bjets",
     id=3000,
     selection="catid_2bjets",
-    label="2 or more b-jets",
+    label="2 b-jets",
+  )
+
+  cat_3bj = config.add_category(
+    name="3bjets",
+    id=4000,
+    selection="catid_3bjets",
+    label="3 b-jets",
+  )
+
+  cat_4bj = config.add_category(
+    name="4bjets",
+    id=5000,
+    selection="catid_4bjets",
+    label="4 b-jets",
+  )
+
+  cat_5bj = config.add_category(
+    name="5bjets",
+    id=6000,
+    selection="catid_5bjets",
+    label="5 b-jets",
+  )
+
+  cat_g5bj = config.add_category(  # noqa
+    name="g5bjets",
+    id=12000,
+    selection="catid_g5bjets",
+    label=">5bj",
+  )
+
+  cat_ge1bj = config.add_category(
+    name="ge1bjet",
+    id=7000,
+    selection="catid_ge1bjet",
+    label=">=1 b-jet",
+  )
+
+  cat_ge2bj = config.add_category(
+    name="ge2bjets",
+    id=8000,
+    selection="catid_ge2bjets",
+    label=">=2 b-jets",
+  )
+
+  cat_ge3bj = config.add_category(
+    name="ge3bjets",
+    id=9000,
+    selection="catid_ge3bjets",
+    label=">=3 b-jets",
+  )
+
+  cat_ge4bj = config.add_category(
+    name="ge4bjets",
+    id=10000,
+    selection="catid_ge4bjets",
+    label=">=4 b-jets",
+  )
+
+  cat_ge5bj = config.add_category(
+    name="ge5bjets",
+    id=11000,
+    selection="catid_ge5bjets",
+    label=">=5 b-jets",
   )
 
 
@@ -137,15 +235,28 @@ def add_combo_categories(config: od.Config) -> None:
   category_groups = {
     "lepton": [
       config.get_category(name)
-      for name in ["1e", "1mu"]
+      for name in ["1e", "1mu", "1lep"]
     ],
     "bjets": [
       config.get_category(name)
-      for name in ["0bjet", "1bjet", "2bjets"]
+      for name in [
+        "0bjet",
+        "1bjet",
+        "2bjets",
+        "3bjets",
+        "4bjets",
+        "5bjets",
+        "g5bjets",
+        "ge1bjet",
+        "ge2bjets",
+        "ge3bjets",
+        "ge4bjets",
+        "ge5bjets",
+      ]
     ],
     "jets": [
       config.get_category(name)
-      for name in ["4jets", "5jets", "6jets"]
+      for name in ["4jets", "5jets", "6jets", "ge4jets", "ge5jets", "ge6jets", "g6jets"]
     ],
   }
 

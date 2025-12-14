@@ -33,6 +33,7 @@ def my_plot1d_func(
     process_settings: dict | None = None,
     variable_settings: dict | None = None,
     example_param: str | float | bool | None = None,
+    legend_fontsize: int | float | None = None,
     **kwargs,
 ) -> tuple[plt.Figure, tuple[plt.Axis]]:
     """
@@ -76,7 +77,7 @@ def my_plot1d_func(
         xlabel=variable_inst.get_full_x_title(),
         xscale="log" if variable_inst.log_x else "linear",
     )
-    ax.legend()
+    ax.legend(legend_fontsize)
     mplhep.cms.label(ax=ax, fontsize=22, llabel="private work")
 
     # task expects a figure and a tuple of axes as output

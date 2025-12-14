@@ -1,3 +1,4 @@
+
 # coding: utf-8
 
 """
@@ -35,5 +36,30 @@ def patch_bundle_repo_exclude_files():
 
 
 @memoize
+def patch_plot_ml_results_single_config():
+    try:
+        from columnflow.tasks.ml import PlotMLResults, MergeMLEvaluation
+    except Exception as exc:
+        logger.warning("failed to import PlotMLResults for patching: %s", exc)
+        return
+
+    if getattr(PlotMLResults, "single_config", None) is True:
+        if getattr(PlotMLResults, "resolution_task_cls", None) is MergeMLEvaluation:
+            return
+    else:
+        PlotMLResults.single_config = True
+        if hasattr(PlotMLResults, "__abstractmethods__") and "single_config" in PlotMLResults.__abstractmethods__:
+            PlotMLResults.__abstractmethods__ = frozenset(
+                m for m in PlotMLResults.__abstractmethods__ if m != "single_config"
+            )
+        logger.debug("patched PlotMLResults.single_config -> True")
+
+    if getattr(PlotMLResults, "resolution_task_cls", None) is not MergeMLEvaluation:
+        PlotMLResults.resolution_task_cls = MergeMLEvaluation
+        logger.debug("patched PlotMLResults.resolution_task_cls -> MergeMLEvaluation")
+
+
+@memoize
 def patch_all():
     patch_bundle_repo_exclude_files()
+    patch_plot_ml_results_single_config()

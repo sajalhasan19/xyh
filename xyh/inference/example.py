@@ -6,6 +6,8 @@ Example inference model.
 
 from columnflow.inference import inference_model, ParameterType, ParameterTransformation
 
+from .signals import XYH_SIGNAL_DATASETS
+
 
 @inference_model
 def example(self):
@@ -29,6 +31,36 @@ def example(self):
         data_from_processes=["TT"],
         mc_stats=True,
     )
+    self.add_category(
+        "cat3",
+        config_category="2j",
+        config_variable="jet1_eta",
+        data_from_processes=["ST"],
+        mc_stats=True,
+    )
+    self.add_category(
+        "cat_ttvv_test",
+        config_category="incl",
+        config_variable="jet1_pt",
+        data_from_processes=["TTVV"],
+        mc_stats=True,
+    )
+    self.add_category(
+        "cat_ttv_test",
+        config_category="incl",
+        config_variable="jet1_pt",
+        data_from_processes=["TTV"],
+        mc_stats=True,
+    )
+    self.add_category(
+        "xyh_signal_incl",
+        config_category="incl",  # or "2j", "3b", etc., as defined in your config
+        config_variable="jet1_pt",
+        data_from_processes=["XYH"],  # this is the name you gave in add_process
+        mc_stats=True,
+    )
+
+
 
     #
     # processes
@@ -44,6 +76,32 @@ def example(self):
         "TT",
         config_process="tt",
         config_mc_datasets=["tt_sl_powheg"],
+    )
+
+    self.add_process(
+        "TTVV",
+        config_process="ttvv",
+        config_mc_datasets=[
+            "ttzz_madgraph",
+            "ttww_madgraph",
+            # whatever ttVV samples you have
+        ],
+    )
+
+    self.add_process(
+        "XYH",
+        is_signal=True,
+        config_process="xyh",  # must match procs.xyh
+        config_mc_datasets=list(XYH_SIGNAL_DATASETS),  # must match dataset name in campaign
+    )
+
+    self.add_process(
+        "TTV",
+        config_process="ttv",
+        config_mc_datasets=[
+            "ttz_amcatnlo"
+            # whatever ttV samples you have
+        ],
     )
 
     #
@@ -96,6 +154,27 @@ def example(self):
         transformations=[ParameterTransformation.effect_from_rate],
         effect=(0.5, 1.1),
     )
+    
+    self.add_parameter(
+        "ttvv_norm",
+        process="TTVV",
+        type=ParameterType.rate_flat,
+    )
+
+    self.add_parameter(
+        "ttv_norm",
+        process="TTV",
+        type=ParameterType.rate_flat,
+    )
+    
+    self.add_parameter(
+        "mu_signal",
+        process="XYH",
+        type=ParameterType.rate_flat,
+        group="theory",
+    )
+
+
 
 
 @inference_model
