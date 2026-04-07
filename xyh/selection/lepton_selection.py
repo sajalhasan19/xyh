@@ -30,7 +30,7 @@ def lepton_selection(
   events: ak.Array,
   **kwargs,
 ) -> Tuple[ak.Array, SelectionResult]:
-	
+  
   mu_mask = (
     # Align muon pT with available trigger thresholds
     (events.Muon.pt > 30) &
@@ -48,21 +48,37 @@ def lepton_selection(
     (events.Electron.mvaIso_WP80)
   )
 
+  # Loose lepton definitions used for extra-lepton veto.
+  mu_loose_mask = mu_mask | (
+    (events.Muon.pt > 15) &
+    (abs(events.Muon.eta) < 2.4) &
+    (events.Muon.looseId) &
+    (events.Muon.tkIsoId >= 1)
+  )
+
+  ele_loose_mask = ele_mask | (
+    (events.Electron.pt > 15) &
+    (abs(events.Electron.eta) < 2.4) &
+    (events.Electron.mvaIso_WP90)
+  )
+
   events = set_ak_column(events, "cutflow.n_mu", ak.sum(mu_mask, axis=1))
   events = set_ak_column(events, "cutflow.n_ele", ak.sum(ele_mask, axis=1))
 
-  # TODO: Maybe veto additional loose leptons
-  # See AZH as a reference
-  lep_sel = (
+  tight_single_lep = (
     ((events.cutflow.n_mu == 1) & (events.cutflow.n_ele == 0)) |
     ((events.cutflow.n_mu == 0) & (events.cutflow.n_ele == 1))
   )
+  loose_single_lep = (ak.sum(mu_loose_mask, axis=1) + ak.sum(ele_loose_mask, axis=1)) == 1
+  lep_sel = tight_single_lep & loose_single_lep
 
   mu_indices = masked_sorted_indices(mu_mask, events.Muon.pt)
   ele_indices = masked_sorted_indices(ele_mask, events.Electron.pt)
 
   mu_mask = ak.fill_none(mu_mask, False)
   ele_mask = ak.fill_none(ele_mask, False)
+  mu_loose_mask = ak.fill_none(mu_loose_mask, False)
+  ele_loose_mask = ak.fill_none(ele_loose_mask, False)
 
   lep_sel = ak.fill_none(lep_sel, False)
 
@@ -84,5 +100,7 @@ def lepton_selection(
       aux={
         "ele_mask": ele_mask,
         "mu_mask": mu_mask,
+        "ele_loose_mask": ele_loose_mask,
+        "mu_loose_mask": mu_loose_mask,
       }
     )

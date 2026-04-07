@@ -57,7 +57,8 @@ def leading_lepton(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
     "MET.{pt,phi}",
   },
   produces={
-    "Neutrino.{pt,eta,phi,mass}"
+    "Neutrino.{pt,eta,phi,mass}",
+    "nu_has_real",
   },
 )
 
@@ -96,6 +97,7 @@ def solve_neutrino_pz(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
   print(len(pz_nu))
 
   has_real = discriminant >= 0
+  events = set_ak_column(events, "nu_has_real", has_real)
   
   
   sqrt_disc = np.sqrt(discriminant)

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/ml_settings_utils.sh"
+
 usage() {
   cat >&2 <<'EOF'
 Usage: RunMLEvaluations.sh <xyh_binary_x<mass>_y<mass>>
@@ -23,10 +26,12 @@ else
 fi
 
 version="${VERSION:-ml_v1}"
-config="${CONFIG:-config_2022pre}"
+config="${CONFIG:-config_2022post}"
 selector="${SELECTOR:-default}"
 producers="${PRODUCERS:-default}"
 workers="${WORKERS:-4}"
+training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5jets;1lep__3bjets__ge6jets;1lep__4bjets__5jets;1lep__ge4bjets__ge6jets}"
+ml_settings="$(resolve_ml_settings "${ml_model}" "${training_categories}" "true" "false")"
 
 if ! command -v law >/dev/null 2>&1; then
   echo "ERROR: 'law' command not found. Please source setup.sh before running this script." >&2
@@ -71,12 +76,13 @@ for dataset in "${datasets[@]}"; do
   law run cf.MLEvaluation \
     --version "${version}" \
     --ml-model "${ml_model}" \
+    ${ml_settings:+--ml-model-settings "${ml_settings}"} \
     --config "${config}" \
     --selector "${selector}" \
     --producers "${producers}" \
     --workers "${workers}" \
     --dataset "${dataset}" \
-    --workers 30
+    --workers 50
 done
 
 echo

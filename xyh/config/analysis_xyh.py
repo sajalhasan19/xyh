@@ -8,6 +8,9 @@ import law
 import order as od
 from scinum import Number
 
+# Ensure ML models are registered when the analysis module is imported.
+import xyh.ml
+
 from columnflow.config_util import (
     get_root_processes_from_campaign, add_shift_aliases, add_category, verify_config_processes,
 )
@@ -32,7 +35,10 @@ ana.x.versions = {}
 
 # files of bash sandboxes that might be required by remote tasks
 # (used in cf.HTCondorWorkflow)
-ana.x.bash_sandboxes = ["$CF_BASE/sandboxes/cf.sh"]
+ana.x.bash_sandboxes = [
+    "$CF_BASE/sandboxes/cf.sh",
+    "$XYH_BASE/sandboxes/example.sh",
+]
 default_sandbox = law.Sandbox.new(law.config.get("analysis", "default_columnar_sandbox"))
 if default_sandbox.sandbox_type == "bash" and default_sandbox.name not in ana.x.bash_sandboxes:
     ana.x.bash_sandboxes.append(default_sandbox.name)

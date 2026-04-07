@@ -10,7 +10,7 @@ set -euo pipefail
 export PYTHONNOUSERSITE=1
 
 default_base_dir="/data/dust/user/hasansye/xyh/data/cf_store/analysis_xyh/cf.CreateDatacards/config_2022pre/calib__default/sel__default/red__cf_default/prod__default/hist__cf_default/inf__xyh_limits"
-datacard_dir_pattern="rebin_ml_v5_logit"
+datacard_dir_pattern="rebin_ml_v1_cmall_raw"
 
 if [[ $# -eq 0 ]]; then
   base_dir="${COMB_LIMIT_BASE_DIR:-${default_base_dir}}"
@@ -74,7 +74,7 @@ else
 fi
 mass="${2:-125}"
 tag="${3:-RunIII}"
-default_output_dir="/data/dust/user/hasansye/xyh/combine_outputs/${tag}_config_2022post__rebin_ml_v5_logit"
+default_output_dir="/data/dust/user/hasansye/xyh/combine_outputs/${tag}_config_2022post__rebinned_ml_unc_pnn_v15"
 output_dir="${4:-${default_output_dir}}"
 
 mkdir -p "${output_dir}"
@@ -175,6 +175,7 @@ echo "[+] Running blind limits with mH=${mass}, tag='${tag}' (log: ${log_path})"
 (
   cd "${card_dir}"
   combine -M AsymptoticLimits "${workspace_name}" --run blind -m "${mass}" -n "${tag}"
+    #--freezeParameters allConstrainedNuisances,tt_norm
 ) | tee "${log_path}"
 
 combine_root="${card_dir}/higgsCombine${tag}.AsymptoticLimits.mH${mass}.root"

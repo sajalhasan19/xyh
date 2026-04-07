@@ -14,8 +14,12 @@ np = maybe_import("numpy")
 ak = maybe_import("awkward")
 
 MODEL_NAMES = [
-    f"xyh_binary_{name.removeprefix('xyh_sl_')}"
-    for name in XYH_SIGNAL_PROCESSES
+    "xyh_binary_parameterized",  # mass-conditioned model
+    "xyh_pnn_parameterized",  # mass-conditioned model
+    *[
+        f"xyh_binary_{name.removeprefix('xyh_sl_')}"
+        for name in XYH_SIGNAL_PROCESSES
+    ],
 ]
 
 LOGIT_CLIP_EPS = 1.0e-6
@@ -269,6 +273,16 @@ def add_variables(config: od.Config) -> None:
       aux={"hist_axes": ("category", "process", "shift"),},
   )
 
+  config.add_variable(
+      name="m_H",
+      expression="m_H",
+      null_value=EMPTY_FLOAT,
+      binning=(40, 0., 400.),
+      unit="GeV",
+      x_title=r"$m_{bb_{lead},(\Delta R<1.4)}$",
+      aux={"hist_axes": ("category", "process", "shift"),},
+  )
+
   for i in range(2):
     config.add_variable(
       name=f"Lepton{i+1}_pt",
@@ -299,7 +313,7 @@ def add_variables(config: od.Config) -> None:
       null_value=EMPTY_FLOAT,
       binning=(40, 0., 400.),
       unit="GeV",
-      x_title=r"$m_{whad}$",
+      x_title=r"$m_{pq}$",
   )
 
   config.add_variable(
@@ -309,6 +323,15 @@ def add_variables(config: od.Config) -> None:
       binning=(40, 0., 400.),
       unit="GeV",
       x_title=r"$m_{l\nu}$",
+  )
+
+  config.add_variable(
+      name="wlnu_mass_real",
+      expression="mlnu_real",
+      null_value=EMPTY_FLOAT,
+      binning=(40, 0., 400.),
+      unit="GeV",
+      x_title=r"$m_{l\nu}$ (real $p^{\nu}_{z}$)",
   )
 
   config.add_variable(
@@ -335,7 +358,7 @@ def add_variables(config: od.Config) -> None:
       null_value=EMPTY_FLOAT,
       binning=(40, 60., 600.),
       unit="GeV",
-      x_title="top_mass",
+      x_title=r"$m_{W_{lep}b}$",
   )
   
   config.add_variable(
@@ -353,7 +376,7 @@ def add_variables(config: od.Config) -> None:
       null_value=EMPTY_FLOAT,
       binning=(40, 60., 600.),
       unit="GeV",
-      x_title="top_had_mass",
+      x_title=r"$m_{W_{had}b}$",
   )
   
   config.add_variable(

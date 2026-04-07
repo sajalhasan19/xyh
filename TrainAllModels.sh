@@ -2,12 +2,17 @@
 set -euo pipefail
 
 # Run cf.MLTraining for all available XYH binary models (up to x <= 2000).
-config="config_2022pre"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/ml_settings_utils.sh"
+
+config="${CONFIG:-config_2022post}"
 selector="default"
 calibrator="default"
 reducer="cf_default"
 producers="default"
-version="${VERSION:-ml_v1}"
+version="${VERSION:-ml_v1_binary_2022post}"
+# training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5jets;1lep__3bjets__ge6jets;1lep__4bjets__5jets;1lep__ge4bjets__ge6jets}"
+training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5jets;1lep__3bjets__ge6jets;1lep__4bjets__5jets;1lep__ge4bjets__ge6jets}"
 readarray -t available_models < <(python - <<'PY'
 from xyh.inference.signals import XYH_SIGNAL_PROCESSES
 
@@ -54,6 +59,7 @@ echo "[+] Will train ${#models[@]} model(s) (version=${version})"
 for model in "${models[@]}"; do
     echo
     echo ">>> Training model: ${model}"
+    ml_settings="$(resolve_ml_settings "${model}" "${training_categories}" "false" "true")"
     law run cf.MLTraining \
         --config "${config}" \
         --ml-model "${model}" \
@@ -62,8 +68,8 @@ for model in "${models[@]}"; do
         --calibrators "${calibrator}" \
         --reducer "${reducer}" \
         --producers "${producers}" \
-        --workers 30
+        --workers 40 \
+        ${ml_settings:+--ml-model-settings "${ml_settings}"}
 done
-
 echo
 echo "[+] All trainings submitted."

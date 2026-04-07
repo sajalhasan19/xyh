@@ -24,7 +24,7 @@ from xyh.config.analysis_xyh import analysis_xyh
 from xyh.config.categories import add_all_categories
 from xyh.config.variables import add_variables
 from columnflow.config_util import (
-    get_root_processes_from_campaign, add_shift_aliases,
+    get_root_processes_from_campaign, add_shift_aliases, get_shifts_from_sources,
 )
 from xyh.inference.signals import (
     XYH_SIGNAL_PROCESSES,
@@ -167,12 +167,23 @@ def add_config(
     # # DY
     # NLO Samples
     # TODO: Implement stitching
-    #"dy_m50toinf_amcatnlo",
-    "dy_m10to50_amcatnlo",
-    #"dy_m4to10_amcatnlo",
-    "dy_m50toinf_0j_amcatnlo",
-    "dy_m50toinf_1j_amcatnlo",
-    "dy_m50toinf_2j_amcatnlo",
+    # "dy_m50toinf_amcatnlo",
+    *if_era(year=2022, tag="preEE", values=[
+      "dy_m10to50_amcatnlo",
+      "dy_m4to10_amcatnlo",
+      # "dy_m50toinf_amcatnlo",
+      "dy_m50toinf_0j_amcatnlo",
+      "dy_m50toinf_1j_amcatnlo",
+      "dy_m50toinf_2j_amcatnlo",
+    ]),
+    *if_era(year=2022, tag="postEE", values=[
+      "dy_m10to50_amcatnlo",
+      "dy_m4to10_amcatnlo",
+      #"dy_m50toinf_amcatnlo",
+      "dy_m50toinf_0j_amcatnlo",
+      "dy_m50toinf_1j_amcatnlo",
+      "dy_m50toinf_2j_amcatnlo",
+    ]),
 
     # # VV
     "zz_pythia",
@@ -245,7 +256,9 @@ def add_config(
   # default calibrator, selector, producer, ml model and inference model
   cfg.x.default_calibrator = "default" # "skip_jecunc" TODO: use this one?
   cfg.x.default_selector = "default"
+  cfg.x.default_reducer = "cf_default"
   cfg.x.default_producer = "default"
+  cfg.x.default_hist_producer = "all_weights"
   cfg.x.default_weight_producer = "all_weights"
   cfg.x.default_ml_model = None
   cfg.x.default_inference_model = "xyh_limits"
@@ -254,16 +267,17 @@ def add_config(
 
   cfg.x.default_bins_per_category = {
     # categories
-    "1lep__2bjets__4jets": 3,
-    "1lep__2bjets__5jets": 3,
-    "1lep__2bjets__6jets": 3,
-    "1lep__2bjets__g6jets": 3,
-    "1lep__3bjets__4jets": 4,
-    "1lep__3bjets__5jets": 4,
-    "1lep__3bjets__6jets": 4,
-    "1lep__3bjets__g6jets": 4,
-    "1lep__4bjets__5jets": 5,
-    "1lep__ge4bjets__ge6jets": 5,
+    # "cat_incl": 20,
+    # "1lep__2bjets__4jets": 15,
+    # "1lep__2bjets__5jets": 15,
+    # "1lep__2bjets__6jets": 15,
+    # "1lep__2bjets__g6jets": 10,
+    "1lep__3bjets__4jets": 6,
+    "1lep__3bjets__5jets": 6,
+    #"1lep__3bjets__6jets": 6,
+    "1lep__3bjets__ge6jets": 6,
+    "1lep__4bjets__5jets": 6,
+    "1lep__ge4bjets__ge6jets": 6,
     # # muon categories
     # "1mu__2bjets__4jets": 3,
     # "1mu__2bjets__5jets": 3,
@@ -321,34 +335,35 @@ def add_config(
   only_process = lambda target: (lambda proc_name: proc_name.lower() == target.lower())
 
   background_rebin_categories = [
-    "1lep__2bjets__4jets",
-    "1lep__2bjets__5jets",
-    "1lep__2bjets__6jets",
-    "1lep__2bjets__g6jets",
-    "1lep__3bjets__4jets",
-    "1lep__3bjets__5jets",
+    # "1lep__2bjets__4jets",
+    # "1lep__2bjets__5jets",
+    # "1lep__2bjets__6jets",
+    # "1lep__2bjets__g6jets",
+    
   ]
 
   signal_rebin_categories = [
-    "1lep__3bjets__6jets",
-    "1lep__3bjets__g6jets",
+    "1lep__3bjets__4jets",
+    #"1lep__3bjets__6jets",
+    "1lep__3bjets__ge6jets",
     "1lep__4bjets__5jets",
     "1lep__ge4bjets__ge6jets",
+    "1lep__3bjets__5jets",
   ]
 
   cfg.x.inference_category_rebin_processes = {
-    **{cat: is_xyh_background for cat in background_rebin_categories},
+    **{cat: is_xyh_signal for cat in background_rebin_categories},
     **{cat: is_xyh_signal for cat in signal_rebin_categories},
   }
 
   tt_control_rebin_categories = [
-    "1lep__2bjets__4jets",
-    "1lep__2bjets__5jets",
-    "1lep__2bjets__6jets",
-    "1lep__2bjets__g6jets",
+    # "1lep__2bjets__4jets",
+    # "1lep__2bjets__5jets",
+    # "1lep__2bjets__6jets",
+    # "1lep__2bjets__g6jets",
   ]
   for cat in tt_control_rebin_categories:
-    cfg.x.inference_category_rebin_processes[cat] = only_process("tt")
+    cfg.x.inference_category_rebin_processes[cat] = is_xyh_signal
 
 
 
@@ -447,7 +462,7 @@ def add_config(
   cfg.x.minbias_xs = Number(69.2, 0.046j)
 
   # whether to validate the number of obtained LFNs in GetDatasetLFNs
-  cfg.x.validate_dataset_lfns = limit_dataset_files is None
+  cfg.x.validate_dataset_lfns = True
 
   # jec configuration
   # https://twiki.cern.ch/twiki/bin/view/CMS/JECDataMC?rev=201
@@ -589,15 +604,15 @@ def add_config(
     cfg.x.electron_sf_id_names = ("Electron-ID-SF", "2022Re-recoE+PromptFG", "wp80iso")
   elif f"{year}{corr_postfix}" == "2022preEE":
     cfg.x.electron_sf_names = ("Electron-ID-SF", "2022Re-recoBCD", "RecoAbove75")
-    cfg.x.electron_sf_mid_names = ("Electron-ID-SF", "2022Re-recoE+PromptFG", "Reco20to75")
+    cfg.x.electron_sf_mid_names = ("Electron-ID-SF", "2022Re-recoBCD", "Reco20to75")
     cfg.x.electron_sf_id_names = ("Electron-ID-SF", "2022Re-recoBCD", "wp80iso")
   # names of muon correction sets and working points
   # (used in the muon producer)
-  # cfg.x.muon_sf_names = ("NUM_TightRelTkIso_DEN_HighPtID", f"{year}{corr_postfix}_UL")
+  cfg.x.muon_sf_names = ("NUM_TightRelTkIso_DEN_HighPtID", f"{year}{corr_postfix}")
   cfg.x.muon_sf_id_names = ("NUM_HighPtID_DEN_TrackerMuons", f"{year}{corr_postfix}")
   cfg.x.muon_sf_iso_names = ("NUM_TightRelTkIso_DEN_HighPtID", f"{year}{corr_postfix}")
 
-  cfg.x.top_pt_reweighting_params = {
+  cfg.x.top_pt_weight = {
     "a": 0.0615,
     "b": -0.0005,
   }
@@ -616,10 +631,10 @@ def add_config(
   # register shifts
   # TODO: make shifts year-dependent
   cfg.add_shift(name="nominal", id=0)
-  cfg.add_shift(name="tune_up", id=1, type="shape", tags={"disjoint_from_nominal"})
-  cfg.add_shift(name="tune_down", id=2, type="shape", tags={"disjoint_from_nominal"})
-  cfg.add_shift(name="hdamp_up", id=3, type="shape", tags={"disjoint_from_nominal"})
-  cfg.add_shift(name="hdamp_down", id=4, type="shape", tags={"disjoint_from_nominal"})
+  # cfg.add_shift(name="tune_up", id=1, type="shape", tags={"disjoint_from_nominal"})
+  # cfg.add_shift(name="tune_down", id=2, type="shape", tags={"disjoint_from_nominal"})
+  # cfg.add_shift(name="hdamp_up", id=3, type="shape", tags={"disjoint_from_nominal"})
+  # cfg.add_shift(name="hdamp_down", id=4, type="shape", tags={"disjoint_from_nominal"})
   cfg.add_shift(name="minbias_xs_up", id=7, type="shape")
   cfg.add_shift(name="minbias_xs_down", id=8, type="shape")
   add_aliases("minbias_xs", {"pu_weight": "pu_weight_{name}"}, selection_dependent=False)
@@ -631,36 +646,70 @@ def add_config(
   cfg.add_shift(name="e_sf_down", id=41, type="shape")
   cfg.add_shift(name="e_trig_sf_up", id=42, type="shape")
   cfg.add_shift(name="e_trig_sf_down", id=43, type="shape")
-  add_aliases("e_sf", {"electron_weight": "electron_weight_{direction}"}, selection_dependent=False)
+  add_aliases(
+    "e_sf",
+    {
+      "electron_weight": "electron_weight_{direction}",
+      "electron_mid_weight": "electron_mid_weight_{direction}",
+      "electron_id_weight": "electron_id_weight_{direction}",
+    },
+    selection_dependent=False,
+  )
+  add_aliases("e_trig_sf", {"electron_weight": "electron_weight_{direction}"}, selection_dependent=False)
 
   cfg.add_shift(name="muon_up", id=51, type="shape")
   cfg.add_shift(name="muon_down", id=52, type="shape")
-  add_shift_aliases(cfg, "muon", {"muon_weight": "muon_weight_{direction}"})  
+  add_aliases(
+    "muon",
+    {
+      "muon_id_weight": "muon_id_weight_{direction}",
+      "muon_iso_weight": "muon_iso_weight_{direction}",
+    },
+    selection_dependent=False,
+  )
 
-  btag_uncs = []
-  for i, unc in enumerate(btag_uncs):
-    cfg.add_shift(name=f"btag_{unc}_up", id=100 + 2 * i, type="shape")
-    cfg.add_shift(name=f"btag_{unc}_down", id=101 + 2 * i, type="shape")
+  # b-tag shape uncertainty sources
+  btag_uncs = [
+    ("cferr1", "cferr1"),
+    ("cferr2", "cferr2"),
+    ("hf", "hf"),
+    ("hfstats1", f"hfstats1_{year}"),
+    ("hfstats2", f"hfstats2_{year}"),
+    ("lf", "lf"),
+    ("lfstats1", f"lfstats1_{year}"),
+    ("lfstats2", f"lfstats2_{year}"),
+  ]
+  for i, (unc, btag_weight_label) in enumerate(btag_uncs):
+    shift_source = f"btag_{unc}"
+    cfg.add_shift(name=f"{shift_source}_up", id=100 + 2 * i, type="shape")
+    cfg.add_shift(name=f"{shift_source}_down", id=101 + 2 * i, type="shape")
+    add_aliases(
+      shift_source,
+      {"btag_weight": f"btag_weight_{btag_weight_label}" + "_{direction}"},
+      selection_dependent=False,
+    )
 
-  cfg.add_shift(name="mur_up", id=201, type="shape")
-  cfg.add_shift(name="mur_down", id=202, type="shape")
-  cfg.add_shift(name="muf_up", id=203, type="shape")
-  cfg.add_shift(name="muf_down", id=204, type="shape")
+  # cfg.add_shift(name="mur_up", id=201, type="shape")
+  # cfg.add_shift(name="mur_down", id=202, type="shape")
+  # cfg.add_shift(name="muf_up", id=203, type="shape")
+  # cfg.add_shift(name="muf_down", id=204, type="shape")
   cfg.add_shift(name="murf_envelope_up", id=205, type="shape")
   cfg.add_shift(name="murf_envelope_down", id=206, type="shape")
   cfg.add_shift(name="pdf_up", id=207, type="shape")
   cfg.add_shift(name="pdf_down", id=208, type="shape")
 
-  for unc in ["mur", "muf", "murf_envelope", "pdf"]:
-    add_aliases(
-      unc,
-      {f"normalized_{unc}_weight": f"normalized_{unc}_weight_" + "{direction}"},
-      selection_dependent=False,
-    )
+  # add_aliases("mur", {"mur_weight": "mur_weight_{direction}"}, selection_dependent=False)
+  # add_aliases("muf", {"muf_weight": "muf_weight_{direction}"}, selection_dependent=False)
+  add_aliases(
+    "murf_envelope",
+    {"murmuf_envelope_weight": "murmuf_envelope_weight_{direction}"},
+    selection_dependent=False,
+  )
+  add_aliases("pdf", {"pdf_weight": "pdf_weight_{direction}"}, selection_dependent=False)
 
-  cfg.add_shift(name="jer_up", id=6000, type="shape", tags={"selection_dependent"})
-  cfg.add_shift(name="jer_down", id=6001, type="shape", tags={"selection_dependent"})
-  add_aliases("jer", {"Jet.pt": "Jet.pt_{name}", "Jet.mass": "Jet.mass_{name}"}, selection_dependent=True)
+  # cfg.add_shift(name="jer_up", id=6000, type="shape", tags={"selection_dependent"})
+  # cfg.add_shift(name="jer_down", id=6001, type="shape", tags={"selection_dependent"})
+  # add_aliases("jer", {"Jet.pt": "Jet.pt_{name}", "Jet.mass": "Jet.mass_{name}"}, selection_dependent=True)
 
   def make_jme_filename(jme_aux, sample_type, name, era=None):
     """
@@ -757,11 +806,16 @@ def add_config(
       # general event information
       "run", "luminosityBlock", "event", "cutflow.*",
       # columns added during selection, required in general
-      "mc_weight", "PV.npvs", "process_id", "category_ids", "deterministic_seed",
-      # weight-related columns
+      "mc_weight", "normalization_weight", "PV.npvs", "process_id", "category_ids", "deterministic_seed",
+      # weight-related columns used by histogramming/default.py:all_weights
+      # keep lepton SF weights explicitly; all_weights declares them in cfg.x.event_weights below
+      "electron_weight*", "electron_mid_weight*", "electron_id_weight*",
+      "muon_id_weight*", "muon_iso_weight*",
       "pu_weight*", "pdf_weight*",
-      "murf_envelope_weight*", "mur_weight*", "muf_weight*",
+      "murmuf_envelope_weight*", "mur_weight*", "muf_weight*",
       "btag_weight*",
+      # needed by cms theory-weight producers used in xyh/production/default.py
+      "LHEPdfWeight", "LHEScaleWeight",
       "Pileup.nTrueInt",
       "GenPart.*",
     } | set(  # Jets
@@ -806,19 +860,35 @@ def add_config(
   # get_shifts = lambda *keys: sum(([cfg.get_shift(f"{k}_up"), cfg.get_shift(f"{k}_down")] for k in keys), [])
   # get_shifts = functools.partial(get_shifts_from_sources, cfg)
   cfg.x.event_weights = DotDict({
+    # consumed by default hist producer "all_weights"
     "normalization_weight": [],
-    "electron_weight": [],
-    "electron_mid_weight": [],
-    "electron_id_weight": [],
-    "muon_id_weight": [],
-    "muon_iso_weight": [],
-    "pu_weight": [],
-    "btag_weight": [],
+    "electron_weight": get_shifts_from_sources(cfg, "e_sf", "e_trig_sf"),
+    "electron_mid_weight": get_shifts_from_sources(cfg, "e_sf"),
+    "electron_id_weight": get_shifts_from_sources(cfg, "e_sf"),
+    "muon_id_weight": get_shifts_from_sources(cfg, "muon"),
+    "muon_iso_weight": get_shifts_from_sources(cfg, "muon"),
+    "pu_weight": get_shifts_from_sources(cfg, "minbias_xs"),
+    "pdf_weight": get_shifts_from_sources(cfg, "pdf"),
+    # "mur_weight": get_shifts_from_sources(cfg, "mur"),
+    # "muf_weight": get_shifts_from_sources(cfg, "muf"),
+    "murmuf_envelope_weight": get_shifts_from_sources(cfg, "murf_envelope"),
+    # propagate b-tag shape shifts to histogram production
+    "btag_weight": get_shifts_from_sources(
+      cfg,
+      "btag_cferr1",
+      "btag_cferr2",
+      "btag_hf",
+      "btag_hfstats1",
+      "btag_hfstats2",
+      "btag_lf",
+      "btag_lfstats1",
+      "btag_lfstats2",
+    ),
   })
 
   for dataset in cfg.datasets:
     if dataset.x("is_ttbar", False):
-      dataset.x.event_weights = {"top_pt_weight": []}
+      dataset.x.event_weights = {"top_pt_weight": get_shifts_from_sources(cfg, "top_pt")}
 
   prod_version = "v1"
 

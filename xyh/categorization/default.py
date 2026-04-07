@@ -39,6 +39,18 @@ def catid_1lep(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array,
   return events, mask
 
 @categorizer(uses={"Jet"}, call_force=True)
+def catid_2jets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
+  n_jets = ak.num(events.Jet, axis=-1)
+  mask = (n_jets == 2)
+  return events, mask
+
+@categorizer(uses={"Jet"}, call_force=True)
+def catid_ge2jets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
+  n_jets = ak.num(events.Jet, axis=-1)
+  mask = (n_jets >= 2)
+  return events, mask
+
+@categorizer(uses={"Jet"}, call_force=True)
 def catid_5jets(self: Categorizer, events: ak.Array, **kwargs) -> tuple[ak.Array, ak.Array]:
   n_jets = ak.num(events.Jet, axis=-1)
   mask = (n_jets == 5)

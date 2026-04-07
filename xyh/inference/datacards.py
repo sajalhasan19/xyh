@@ -40,17 +40,18 @@ CATEGORY_SPECS: tuple[tuple[str, str], ...] = (
     # ("cat_1e_3bjets_g6jets", "1e__3bjets__g6jets"),
     # ("cat_1e_4bjets_5jets", "1e__4bjets__5jets"),
     # ("cat_1e_4bjets_6jets", "1e__ge4bjets__ge6jets"),
- 
-    ("cat_1lep_2bjets_4jets", "1lep__2bjets__4jets"),
-    ("cat_1lep_2bjets_5jets", "1lep__2bjets__5jets"),
-    ("cat_1lep_2bjets_6jets", "1lep__2bjets__6jets"),
-    ("cat_1lep_2bjets_g6jets", "1lep__2bjets__g6jets"),
+
+    # ("cat_1lep_2bjets_4jets", "1lep__2bjets__4jets"),
+    # ("cat_1lep_2bjets_5jets", "1lep__2bjets__5jets"),
+    # ("cat_1lep_2bjets_6jets", "1lep__2bjets__6jets"),
+    # ("cat_1lep_2bjets_g6jets", "1lep__2bjets__g6jets"),
     ("cat_1lep_3bjets_4jets", "1lep__3bjets__4jets"),
     ("cat_1lep_3bjets_5jets", "1lep__3bjets__5jets"),
-    ("cat_1lep_3bjets_6jets", "1lep__3bjets__6jets"),
-    ("cat_1lep_3bjets_g6jets", "1lep__3bjets__g6jets"),
+    # ("cat_1lep_3bjets_6jets", "1lep__3bjets__6jets"),
+    # ("cat_1lep_3bjets_g6jets", "1lep__3bjets__g6jets"),
+    ("cat_1lep_3bjets_ge6jets", "1lep__3bjets__ge6jets"),
     ("cat_1lep_4bjets_5jets", "1lep__4bjets__5jets"),
-    ("cat_1lep_4bjets_6jets", "1lep__ge4bjets__ge6jets"),
+    ("cat_1lep_ge4bjets_ge6jets", "1lep__ge4bjets__ge6jets"),
 
     # inclusive examples (kept for reference)
     # ("cat_1e_ge2bjets_ge4jets", "1e__ge2bjets__ge4jets"),
@@ -70,13 +71,14 @@ CATEGORY_SPECS: tuple[tuple[str, str], ...] = (
 )
 
 
+
 # background process specifications (process label, config process name, dataset names)
 BACKGROUND_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("TT", "tt", ("tt_sl_powheg", "tt_dl_powheg", "tt_fh_powheg")),
     ("DY", "dy", (
         "dy_m4to10_amcatnlo",
         "dy_m10to50_amcatnlo",
-        "dy_m50toinf_amcatnlo",
+        #"dy_m50toinf_amcatnlo",
         "dy_m50toinf_0j_amcatnlo",
         "dy_m50toinf_1j_amcatnlo",
         "dy_m50toinf_2j_amcatnlo",
@@ -109,6 +111,18 @@ BACKGROUND_RATE_PARAMETERS: tuple[str, ...] = (
     "ttv_norm",
     "ttvv_norm",
     "vv_norm",
+)
+
+# shift sources used for b-tagging shape uncertainties
+BTAG_SHAPE_SOURCES: tuple[str, ...] = (
+    "btag_cferr1",
+    "btag_cferr2",
+    "btag_hf",
+    "btag_hfstats1",
+    "btag_hfstats2",
+    "btag_lf",
+    "btag_lfstats1",
+    "btag_lfstats2",
 )
 
 def _resolve_signal_process() -> tuple[str, str, str]:
@@ -224,13 +238,15 @@ def xyh_limits(self) -> None:
     #
     # parameters
     #
-
+    # Experimental uncertainties: luminosity and b-tagging.
     self.add_parameter_group("experiment")
-    self.add_parameter_group("theory")
 
     for cfg in self.config_insts:
         lumi = cfg.x.luminosity
-        for unc_name in lumi.uncertainties:
+        for unc_name in ("lumi_13TeV_2022", "lumi_13TeV_correlated"):
+            if unc_name not in lumi.uncertainties:
+                continue
+
             self.add_parameter(
                 f"{unc_name}_{cfg.name}",
                 type=ParameterType.rate_gauss,
@@ -239,22 +255,148 @@ def xyh_limits(self) -> None:
                 group="experiment",
             )
 
-    # flat normalisation uncertainties for backgrounds
-    for param_name, (proc_name, _, _) in zip(BACKGROUND_RATE_PARAMETERS, BACKGROUND_SPECS):
+    all_mc_processes = [*list(_background_process_names()), signal_process]
+    self.add_parameter(
+        "minbias_xs",
+        process=all_mc_processes,
+        type=ParameterType.shape,
+        config_data={
+            cfg.name: self.parameter_config_spec(shift_source="minbias_xs")
+            for cfg in self.config_insts
+        },
+        group="experiment",
+    )
+
+    # self.add_parameter(
+    #     "top_pt",
+    #     process="TT",
+    #     type=ParameterType.shape,
+    #     config_data={
+    #         cfg.name: self.parameter_config_spec(shift_source="top_pt")
+    #         for cfg in self.config_insts
+    #     },
+    #     group="experiment",
+    # )
+
+    #
+    # b-tagging shape uncertainties
+    #
+    for shift_source in BTAG_SHAPE_SOURCES:
+        for cfg in self.config_insts:
+            if not cfg.has_shift(f"{shift_source}_up") or not cfg.has_shift(f"{shift_source}_down"):
+                raise ValueError(
+                    f"required shifts '{shift_source}_up/down' not found in config '{cfg.name}'",
+                )
+
         self.add_parameter(
-            param_name,
-            process=proc_name,
-            type=ParameterType.rate_uniform,
+            shift_source,
+            process=all_mc_processes,
+            type=ParameterType.shape,
+            config_data={
+                cfg.name: self.parameter_config_spec(shift_source=shift_source)
+                for cfg in self.config_insts
+            },
+            group="experiment",
+        )
+
+    for shift_source in (
+        "e_sf",
+        "e_trig_sf",
+        "muon",
+        # "jer",
+    ):
+        for cfg in self.config_insts:
+            if not cfg.has_shift(f"{shift_source}_up") or not cfg.has_shift(f"{shift_source}_down"):
+                raise ValueError(
+                    f"required shifts '{shift_source}_up/down' not found in config '{cfg.name}'",
+                )
+
+        self.add_parameter(
+            shift_source,
+            process=all_mc_processes,
+            type=ParameterType.shape,
+            config_data={
+                cfg.name: self.parameter_config_spec(shift_source=shift_source)
+                for cfg in self.config_insts
+            },
+            group="experiment",
+        )
+
+    #
+    # free-floating TT normalisation
+    #
+
+    if not self.has_parameter_group("theory"):
+        self.add_parameter_group("theory")
+    self.add_parameter(
+        "tt_norm",
+        process="TT",
+        type=ParameterType.rate_unconstrained,
+        effect=os.environ.get("XYH_TT_NORM_RATEPARAM", "1 [0,2]"),
+        group="theory",
+    )
+
+    # self.add_parameter_group("theory")
+    #
+    # flat normalisation uncertainties for backgrounds
+    # for param_name, (proc_name, _, _) in zip(BACKGROUND_RATE_PARAMETERS, BACKGROUND_SPECS):
+    #     if param_name == "tt_norm":
+    #         continue
+    #     self.add_parameter(
+    #         param_name,
+    #         process=proc_name,
+    #         type=ParameterType.rate_uniform,
+    #         group="theory",
+    #     )
+
+    for shift_source in (
+        # "mur",
+        # "muf",
+        "murf_envelope",
+        "pdf",
+    ):
+        for cfg in self.config_insts:
+            if not cfg.has_shift(f"{shift_source}_up") or not cfg.has_shift(f"{shift_source}_down"):
+                raise ValueError(
+                    f"required shifts '{shift_source}_up/down' not found in config '{cfg.name}'",
+                )
+
+        self.add_parameter(
+            shift_source,
+            process=all_mc_processes,
+            type=ParameterType.shape,
+            config_data={
+                cfg.name: self.parameter_config_spec(shift_source=shift_source)
+                for cfg in self.config_insts
+            },
             group="theory",
         )
 
+    # for shift_source in ("tune", "hdamp"):
+    #     for cfg in self.config_insts:
+    #         if not cfg.has_shift(f"{shift_source}_up") or not cfg.has_shift(f"{shift_source}_down"):
+    #             raise ValueError(
+    #                 f"required shifts '{shift_source}_up/down' not found in config '{cfg.name}'",
+    #             )
+
+    #     self.add_parameter(
+    #         shift_source,
+    #         process="TT",
+    #         type=ParameterType.shape,
+    #         config_data={
+    #             cfg.name: self.parameter_config_spec(shift_source=shift_source)
+    #             for cfg in self.config_insts
+    #         },
+    #         group="theory",
+    #     )
+    
     # signal strength modifier
-    self.add_parameter(
-        "mu_signal",
-        process=signal_process,
-        type=ParameterType.rate_uniform,
-        group="theory",
-    )
+    # self.add_parameter(
+    #     "mu_signal",
+    #     process=signal_process,
+    #     type=ParameterType.rate_uniform,
+    #     group="theory",
+    # )
 
 # Ensure downstream tasks know data handling policy
 xyh_limits.skip_data = False

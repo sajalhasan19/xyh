@@ -86,11 +86,18 @@ class LimitCollection:
                 raise ValueError(f"Cannot parse signal entry '{item}'") from exc
         return sorted(set(result))
 
-    def _candidate_logs(self) -> Iterable[Tuple[int, int, Path]]:
-        pattern = re.compile(
-            rf"AsymptoticLimits_(?:ml_[^_]+_)?(?:x)?(\d+)_(?:y)?(\d+)_({re.escape(self.tag)})\.log$",
-        )
+    @staticmethod
+    def _extract_masses(name: str, tag: str) -> Tuple[int, int]:
+        tag_pattern = re.escape(tag)
+        match = re.search(rf"(?:^|_)x(\d+)_y(\d+)_{tag_pattern}\.log$", name)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+        match = re.search(rf"(?:^|_)(\d+)_(\d+)_{tag_pattern}\.log$", name)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+        raise ValueError(f"Cannot extract masses from {name}")
 
+    def _candidate_logs(self) -> Iterable[Tuple[int, int, Path]]:
         def resolve_path(mass_x: int, mass_y: int) -> Path:
             candidates = sorted(self.log_dir.glob(f"AsymptoticLimits_*x{mass_x}_y{mass_y}_{self.tag}.log"))
             if not candidates:
@@ -108,11 +115,10 @@ class LimitCollection:
                 yield mass_x, mass_y, path
         else:
             for path in sorted(self.log_dir.glob(f"AsymptoticLimits_*_{self.tag}.log")):
-                match = pattern.match(path.name)
-                if not match:
+                try:
+                    mass_x, mass_y = self._extract_masses(path.name, self.tag)
+                except ValueError:
                     continue
-                mass_x = int(match.group(1))
-                mass_y = int(match.group(2))
                 yield mass_x, mass_y, path
 
     @staticmethod
@@ -141,11 +147,10 @@ class LimitCollection:
         if missing:
             raise ValueError(f"{path}: missing expected quantiles: {', '.join(missing)}")
 
-        match = re.match(r"AsymptoticLimits_(?:ml_[^_]+_)?(?:x)?(\d+)_(?:y)?(\d+)_", path.name)
-        if not match:
-            raise ValueError(f"Cannot extract masses from {path}")
-        mass_x = int(match.group(1))
-        mass_y = int(match.group(2))
+        try:
+            mass_x, mass_y = LimitCollection._extract_masses(path.name, tag)
+        except ValueError as exc:
+            raise ValueError(f"Cannot extract masses from {path}") from exc
 
         return LimitPoint(
             mass_x=mass_x,

@@ -691,6 +691,11 @@ class PlotShiftedInferencePlots(
         default="columnflow.plotting.plot_functions_1d.plot_shifted_variable",
         add_default_to_description=True,
     )
+    stacked = luigi.BoolParameter(
+        default=False,
+        significant=True,
+        description="Create a single stacked background plot with signal overlay (nominal only).",
+    )
     # upstream requirements
     reqs = Requirements(
         RemoteWorkflow.reqs,
@@ -715,11 +720,12 @@ class PlotShiftedInferencePlots(
         return reqs
 
     def output(self):
+        suffix = "__stacked" if self.stacked else ""
         return {
             # NOTE: removing target directory on remote target seems to not work, therefore we add incomplete dummy
             # such that we can rerun without having to remove this directory manually
-            "combined_plots": self.target(f"combined_plots__{self.branch_data.name}.pdf"),
-            "plots": self.target(f"plots__{self.branch_data.name}", dir=True),
+            "combined_plots": self.target(f"combined_plots{suffix}__{self.branch_data.name}.pdf"),
+            "plots": self.target(f"plots{suffix}__{self.branch_data.name}", dir=True),
         }
 
     def prepare_cf_hist(self, h, variable_inst, shift_bin="nominal"):
@@ -802,10 +808,100 @@ class PlotShiftedInferencePlots(
                 )
 
             # create plots for each process and shift
+            output["combined_plots"].parent.touch()
+            output["plots"].touch()
             with PdfPages(output["combined_plots"].abspath) as pdf:
-                for config_proc_name in inf_inst.processes:
-                    proc_name = inf_inst.inf_proc(config_proc_name)
-                    proc_inst = config_inst.get_process(config_proc_name)
+                proc_objs = inf_inst.get_processes(category=cat_name).get(cat_name, [])
+                if not proc_objs:
+                    logger.warning(f"No processes found for category {cat_name}")
+                if self.stacked:
+                    plot_name = f"{cat_name}__stacked__nominal.pdf"
+                    logger.info(f"Preparing plot {plot_name}")
+
+                    hists = {}
+                    for proc_obj in proc_objs:
+                        proc_name = proc_obj.name
+                        if proc_name in {"data", "data_obs"}:
+                            config_proc_name = "data"
+                        else:
+                            cfg = proc_obj.config_data.get(config_inst.name)
+                            if not cfg or not cfg.process:
+                                logger.info(
+                                    f"Skipping process {proc_name}; no config mapping for {config_inst.name}",
+                                )
+                                continue
+                            config_proc_name = cfg.process
+                        try:
+                            proc_inst = config_inst.get_process(config_proc_name)
+                        except Exception:
+                            logger.warning(
+                                f"Skipping process {proc_name}; config process '{config_proc_name}' not found",
+                            )
+                            continue
+                        if self.skip_process(proc_inst, category_inst):
+                            logger.info(f"Skipping process {proc_inst.name} for category {cat_name}")
+                            continue
+
+                        hist_name = get_hist_name(cat_name, proc_name)
+                        h_nom_obj = f_in.get(hist_name)
+                        if not h_nom_obj:
+                            logger.warning(f"Missing histogram {hist_name} in {inp_shapes.fn}")
+                            continue
+                        h_nom = self.prepare_cf_hist(
+                            h_nom_obj.to_hist(),
+                            variable_inst,
+                            shift_bin="nominal",
+                        )
+
+                        proc_plot = proc_inst.copy_shallow() if hasattr(proc_inst, "copy_shallow") else proc_inst
+                        is_signal = getattr(proc_obj, "is_signal", False) or proc_plot.name.startswith("xyh_sl_")
+                        if is_signal:
+                            proc_plot.unstack = True
+                        hists[proc_plot] = h_nom.copy()
+
+                    if hists:
+                        shift_insts = [config_inst.get_shift("nominal").copy_shallow()]
+                        lumi = sum([_config_inst.x.luminosity for _config_inst in self.config_insts])
+                        with law.util.patch_object(config_inst.x, "luminosity", lumi):
+                            fig, _ = self.call_plot_func(
+                                "columnflow.plotting.plot_functions_1d.plot_variable_stack",
+                                hists=hists,
+                                config_inst=config_inst,
+                                category_inst=category_inst.copy_shallow(),
+                                variable_insts=[variable_inst.copy_shallow()],
+                                shift_insts=shift_insts,
+                                **self.get_plot_parameters(),
+                            )
+                            output["plots"].child(plot_name, type="f").dump(fig, formatter="mpl")
+                            pdf.savefig(fig)
+                            plt.close(fig)
+                    else:
+                        logger.warning(f"No histograms found for stacked plot in category {cat_name}")
+
+                    self.publish_message(
+                        f"Finished creating plots for shifted inference model {cat_name}."
+                        f" Plots are stored in \n{output['plots'].abspath}",
+                    )
+                    return
+                for proc_obj in proc_objs:
+                    proc_name = proc_obj.name
+                    if proc_name in {"data", "data_obs"}:
+                        config_proc_name = "data"
+                    else:
+                        cfg = proc_obj.config_data.get(config_inst.name)
+                        if not cfg or not cfg.process:
+                            logger.info(
+                                f"Skipping process {proc_name}; no config mapping for {config_inst.name}",
+                            )
+                            continue
+                        config_proc_name = cfg.process
+                    try:
+                        proc_inst = config_inst.get_process(config_proc_name)
+                    except Exception:
+                        logger.warning(
+                            f"Skipping process {proc_name}; config process '{config_proc_name}' not found",
+                        )
+                        continue
                     if self.skip_process(proc_inst, category_inst):
                         logger.info(f"Skipping process {proc_inst.name} for category {cat_name}")
                         continue
@@ -815,6 +911,31 @@ class PlotShiftedInferencePlots(
                     if not syst_names:
                         syst_names = [None]
                     for syst_name in sorted(syst_names):
+                        if syst_name is None:
+                            plot_name = f"{cat_name}__{proc_inst.name}__nominal.pdf"
+                            logger.info(f"Preparing plot {plot_name}")
+
+                            shift_insts = {
+                                "nominal": config_inst.get_shift("nominal").copy_shallow(),
+                            }
+
+                            hists = {proc_inst: h_nom.copy()}
+                            lumi = sum([_config_inst.x.luminosity for _config_inst in self.config_insts])
+                            with law.util.patch_object(config_inst.x, "luminosity", lumi):
+                                fig, _ = self.call_plot_func(
+                                    self.plot_function,
+                                    hists=hists,
+                                    config_inst=config_inst,
+                                    category_inst=category_inst.copy_shallow(),
+                                    variable_insts=[variable_inst.copy_shallow()],
+                                    shift_insts=list(shift_insts.values()),
+                                    **self.get_plot_parameters(),
+                                )
+                                output["plots"].child(plot_name, type="f").dump(fig, formatter="mpl")
+                                pdf.savefig(fig)
+                                plt.close(fig)
+                            continue
+
                         if syst_name and not syst_name.endswith("Down"):
                             continue
 
@@ -835,10 +956,12 @@ class PlotShiftedInferencePlots(
 
                         for cfg_inst in self.config_insts:
                             shift_label_postfix = ""
+                            cpn_tag = getattr(cfg_inst.x, "cpn_tag", "")
                             # TODO: add cpn_tag to shift label if part of shift_source
-                            if cfg_inst.x.cpn_tag in shift_source:
-                                shift_label_postfix = f" ({cfg_inst.x.cpn_tag})"
-                            shift_source = shift_source.replace(f"_{cfg_inst.x.cpn_tag}", "")
+                            if cpn_tag and cpn_tag in shift_source:
+                                shift_label_postfix = f" ({cpn_tag})"
+                            if cpn_tag:
+                                shift_source = shift_source.replace(f"_{cpn_tag}", "")
                             if cfg_inst.has_shift(f"{shift_source}_up"):
                                 # use shifts and config inst where corresponding shift is defined
                                 shift_insts["up"] = cfg_inst.get_shift(f"{shift_source}_up").copy_shallow()
@@ -891,6 +1014,143 @@ class PlotShiftedInferencePlots(
                 f"Finished creating plots for shifted inference model {cat_name}."
                 f" Plots are stored in \n{output['plots'].abspath}",
             )
+
+
+class PlotCombineImpacts(
+    XYHInferenceModelBase,
+    InferenceModelClassMixin,
+):
+    """
+    Run the Combine impacts workflow on the rebinned XYH datacards.
+    """
+
+    reqs = Requirements(
+        ModifyDatacardsFlatRebin=ModifyDatacardsFlatRebin,
+    )
+
+    mass = luigi.FloatParameter(
+        default=125.0,
+        description="Mass hypothesis passed to Combine tools.",
+    )
+    use_asimov = luigi.BoolParameter(
+        default=True,
+        significant=False,
+        description="When True, run the impacts workflow on the Asimov dataset via '-t -1'.",
+    )
+    poi = luigi.Parameter(
+        default="r",
+        description="Parameter of interest whose range is widened for fit stability.",
+    )
+    poi_range = luigi.Parameter(
+        default="-50,50",
+        significant=False,
+        description="Allowed range passed to '--setParameterRanges' for the parameter of interest.",
+    )
+
+    def requires(self):
+        return self.reqs.ModifyDatacardsFlatRebin.req(self, configs=self.configs)
+
+    @property
+    def mass_repr(self) -> str:
+        return f"{self.mass:g}".replace(".", "p")
+
+    def output(self):
+        workdir = self.target(f"combine_impacts_m{self.mass_repr}", dir=True)
+        return {
+            "workdir": workdir,
+            "combined_card": workdir.child("datacard_combined.txt", type="f"),
+            "workspace": workdir.child(f"workspace_m{self.mass_repr}.root", type="f"),
+            "impacts": workdir.child(f"impacts_m{self.mass_repr}.json", type="f"),
+            "plot": workdir.child(f"impacts_m{self.mass_repr}.pdf", type="f"),
+        }
+
+    def _iter_input_targets(self, inputs):
+        if hasattr(inputs, "collection") and hasattr(inputs.collection, "targets"):
+            return inputs.collection.targets.values()
+        if hasattr(inputs, "targets"):
+            return inputs.targets.values()
+        return inputs.values()
+
+    @staticmethod
+    def _card_label(card_basename: str) -> str:
+        if "__cat_" in card_basename:
+            return card_basename.split("__cat_", 1)[1].rsplit(".", 1)[0]
+        return card_basename.rsplit(".", 1)[0]
+
+    @law.decorator.log
+    @law.decorator.safe_output
+    def run(self):
+        self.touch_output_dirs()
+
+        inputs = self.input()
+        outputs = self.output()
+        workdir = outputs["workdir"]
+        workdir.touch()
+
+        cards = []
+        for target in sorted(self._iter_input_targets(inputs), key=lambda t: t["card"].basename):
+            staged_card = workdir.child(target["card"].basename, type="f")
+            staged_shapes = workdir.child(target["shapes"].basename, type="f")
+            target["card"].copy_to(staged_card)
+            target["shapes"].copy_to(staged_shapes)
+            cards.append(staged_card)
+
+        if not cards:
+            raise Exception("no rebinned datacards found in upstream ModifyDatacardsFlatRebin outputs")
+
+        combine_args = ["combineCards.py"]
+        for card in cards:
+            combine_args.append(f"{self._card_label(card.basename)}={card.basename}")
+
+        combined_card_name = outputs["combined_card"].basename
+        combine_cmd = f"{law.util.quote_cmd(combine_args)} > {law.util.quote_cmd(combined_card_name)}"
+        self.run_command(combine_cmd, cwd=workdir.abspath)
+
+        mass = f"{self.mass:g}"
+        workspace_name = outputs["workspace"].basename
+        self.run_command(
+            [
+                "text2workspace.py",
+                combined_card_name,
+                "-m",
+                mass,
+                "-o",
+                workspace_name,
+            ],
+            cwd=workdir.abspath,
+        )
+
+        asimov_args = "-t -1 " if self.use_asimov else ""
+        fit_args = (
+            f"-d {law.util.quote_cmd(workspace_name)} -m {mass} "
+            "--robustFit 1 "
+            "--cminDefaultMinimizerStrategy 0 "
+            f"--setParameterRanges {self.poi}={self.poi_range} "
+            "--X-rtd MINIMIZER_no_analytic "
+        )
+
+        self.run_command(
+            f"combineTool.py -M Impacts {fit_args}--doInitialFit {asimov_args}-v 3",
+            cwd=workdir.abspath,
+        )
+        self.run_command(
+            f"combineTool.py -M Impacts {fit_args}--doFits {asimov_args}",
+            cwd=workdir.abspath,
+        )
+        self.run_command(
+            f"combineTool.py -M Impacts {fit_args}-o {law.util.quote_cmd(outputs['impacts'].basename)} {asimov_args}",
+            cwd=workdir.abspath,
+        )
+        self.run_command(
+            [
+                "plotImpacts.py",
+                "-i",
+                outputs["impacts"].basename,
+                "-o",
+                outputs["plot"].basename.rsplit(".", 1)[0],
+            ],
+            cwd=workdir.abspath,
+        )
 
 
 class PrepareInferenceTaskCalls(

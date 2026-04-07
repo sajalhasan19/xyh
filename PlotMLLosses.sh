@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: PlotMLLosses.sh <path/to/mlmodel_fXofY_training_history.json>" >&2
+  echo "Usage: PlotMLLosses.sh <path/to/training_history.json|model_history.pkl>" >&2
   exit 1
 }
 
@@ -13,49 +13,72 @@ if [[ ! -f $history_path ]]; then
   exit 1
 fi
 
+mass_x=""
+mass_y=""
 if [[ $history_path =~ x([0-9]+)_y([0-9]+) ]]; then
   mass_x=${BASH_REMATCH[1]}
   mass_y=${BASH_REMATCH[2]}
-else
-  echo "ERROR: failed to extract mass point from path: ${history_path}" >&2
-  exit 1
 fi
 
+fold=""
 if [[ $history_path =~ mlmodel_f([0-9]+)of([0-9]+) ]]; then
   fold=${BASH_REMATCH[1]}
-else
-  echo "ERROR: failed to extract fold from filename: ${history_path}" >&2
-  exit 1
 fi
 
+version="unknown"
 if [[ $history_path =~ /(ml_v[0-9a-zA-Z_]+)/ ]]; then
   version=${BASH_REMATCH[1]}
-else
-  echo "ERROR: failed to extract version from path: ${history_path}" >&2
-  exit 1
 fi
 
 output_dir="/data/dust/user/hasansye/xyh/loss_plots"
 mkdir -p "$output_dir"
-output_path="${output_dir}/ml_loss_${version}_x${mass_x}_y${mass_y}_fold${fold}.png"
 
 export HIST_PATH="$history_path"
-export OUTPUT_PATH="$output_path"
+export OUTPUT_DIR="$output_dir"
+export VERSION="$version"
+export MASS_X="$mass_x"
+export MASS_Y="$mass_y"
+export FOLD="$fold"
 
 python <<'PY'
 import json
 import os
 import pathlib
+import pickle
 import matplotlib.pyplot as plt
 
 history_path = pathlib.Path(os.environ["HIST_PATH"])
-output_path = pathlib.Path(os.environ["OUTPUT_PATH"]).expanduser()
-history = json.loads(history_path.read_text())
-loss = history["metrics"]["loss"]
-val_loss = history["metrics"]["val_loss"]
+output_dir = pathlib.Path(os.environ["OUTPUT_DIR"]).expanduser()
+version = os.environ.get("VERSION", "unknown")
+mass_x = os.environ.get("MASS_X", "")
+mass_y = os.environ.get("MASS_Y", "")
+fold = os.environ.get("FOLD", "")
 
-plt.plot(history["epoch"], loss, label="train")
-plt.plot(history["epoch"], val_loss, label="val")
+parts = ["ml_loss", version]
+if mass_x and mass_y:
+    parts.append(f"x{mass_x}_y{mass_y}")
+if fold:
+    parts.append(f"fold{fold}")
+filename = "_".join(parts) + ".png"
+output_path = output_dir / filename
+
+if history_path.suffix == ".pkl":
+    with history_path.open("rb") as f:
+        history = pickle.load(f)
+else:
+    history = json.loads(history_path.read_text())
+
+if "metrics" in history:
+    loss = history["metrics"]["loss"]
+    val_loss = history["metrics"]["val_loss"]
+    epochs = history.get("epoch", list(range(1, len(loss) + 1)))
+else:
+    loss = history["loss"]
+    val_loss = history["val_loss"]
+    epochs = list(range(1, len(loss) + 1))
+
+plt.plot(epochs, loss, label="train")
+plt.plot(epochs, val_loss, label="val")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.legend()

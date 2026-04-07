@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/ml_settings_utils.sh"
+
 usage() {
   cat >&2 <<'EOF'
 Usage: PlotMLResults.sh <xyh_binary_x<mass>_y<mass>>
@@ -29,14 +32,19 @@ if ! command -v law >/dev/null 2>&1; then
   exit 1
 fi
 
+# training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5jets;1lep__3bjets__ge6jets;1lep__4bjets__5jets;1lep__ge4bjets__ge6jets}"
+training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5jets;1lep__3bjets__ge6jets;1lep__4bjets__5jets;1lep__ge4bjets__ge6jets}"
+ml_settings="$(resolve_ml_settings "${ml_model}" "${training_categories}" "true" "false")"
+
 law run cf.PlotMLResults \
-  --version "${VERSION:-ml_v1}" \
+  --version "${VERSION:-ml_unc_bin_x1000_y700_v2}" \
   --ml-model "${ml_model}" \
-  --config "${CONFIG:-config_2022pre}" \
+  ${ml_settings:+--ml-model-settings "${ml_settings}"} \
+  --config "${CONFIG:-config_2022post}" \
   --selector "${SELECTOR:-default}" \
   --producers "${PRODUCERS:-default}" \
   --processes "${signal_process},background" \
   --datasets "${signal_dataset},background" \
-  --categories "${CATEGORIES:-cat_incl,1lep__2bjets__4jets,1lep__2bjets__5jets,1lep__2bjets__6jets,1lep__2bjets__g6jets,1lep__3bjets__4jets,1lep__3bjets__5jets,1lep__3bjets__6jets,1lep__3bjets__g6jets,1lep__4bjets__5jets,1lep__ge4bjets__ge6jets}" \
-  --plot-function "${PLOT_FUNCTION:-roc}" \
-  --workers "${WORKERS:-30}" 
+  --categories "${CATEGORIES:-cat_incl,1lep__3bjets__4jets,1lep__3bjets__5jets,1lep__3bjets__ge6jets,1lep__4bjets__5jets,1lep__ge4bjets__ge6jets}" \
+  --plot-function "${PLOT_FUNCTION:-cm}" \
+  --workers "${WORKERS:-4}" --skip-ratio

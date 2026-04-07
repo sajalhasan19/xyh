@@ -9,8 +9,15 @@ import functools
 from columnflow.production import Producer, producer
 from columnflow.production.categories import category_ids
 from columnflow.production.normalization import normalization_weights
+from columnflow.production.cms.pileup import pu_weight
+from columnflow.production.cms.btag import btag_weights
+from columnflow.production.cms.electron import electron_weights, electron_mid_weights, electron_id_weights
+from columnflow.production.cms.muon import muon_id_weights, muon_iso_weights
+from columnflow.production.cms.top_pt_weight import top_pt_weight
+from columnflow.production.cms.pdf import pdf_weights
+from columnflow.production.cms.scale import murmuf_weights, murmuf_envelope_weights
 from columnflow.util import maybe_import
-from columnflow.columnar_util import EMPTY_FLOAT, set_ak_column
+from columnflow.columnar_util import EMPTY_FLOAT, set_ak_column, has_ak_column
 
 from xyh.production.leptons import leading_lepton
 from xyh.production.leptons import solve_neutrino_pz
@@ -31,7 +38,10 @@ set_ak_column_f32 = functools.partial(set_ak_column, value_type=np.float32)
 
 @producer(
   uses={
-    category_ids, normalization_weights,
+    category_ids, normalization_weights, pu_weight, btag_weights,
+    electron_weights, electron_mid_weights, electron_id_weights,
+    muon_id_weights, muon_iso_weights,
+    top_pt_weight, pdf_weights, murmuf_weights, murmuf_envelope_weights,
     prepare_objects, leading_lepton,
     solve_neutrino_pz, jet_selection,
     "Jet.{pt,eta,phi,mass,rawFactor,btagDeepFlavB}",
@@ -41,16 +51,20 @@ set_ak_column_f32 = functools.partial(set_ak_column, value_type=np.float32)
     "Lightjet",
   },
   produces={
-    category_ids, normalization_weights,
+    category_ids, normalization_weights, pu_weight, btag_weights,
+    electron_weights, electron_mid_weights, electron_id_weights,
+    muon_id_weights, muon_iso_weights,
+    top_pt_weight, pdf_weights, murmuf_weights, murmuf_envelope_weights,
     prepare_objects, leading_lepton,
     solve_neutrino_pz,
     "event_number", "process_id",
-    "mlnu", "mtlnu",
+    "mlnu", "mlnu_real", "mtlnu",
     "wboson.{pt,eta,phi,mass}",
     #"top_mass_manual",
     #"lv_bjet", #sh
     "lv_bjets",
     "m_bb",
+    "m_H",
     "lv_bb",
     # "m_lead_b",
     # "lead_b_pt",
@@ -77,6 +91,43 @@ def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
   events = self[category_ids](events, **kwargs)
   #print("after category ids", type(events), events.fields)
 
+  if self.dataset_inst.is_mc:
+    events = self[normalization_weights](events, **kwargs)
+    events = self[pu_weight](events, **kwargs)
+    events = self[btag_weights](events, **kwargs)
+    events = self[electron_weights](events, electron_mask=(events.Electron.pt >= 75), **kwargs)
+    events = self[electron_mid_weights](events, electron_mask=(events.Electron.pt < 75), **kwargs)
+    events = self[electron_id_weights](events, **kwargs)
+    events = self[muon_id_weights](events, **kwargs)
+    events = self[muon_iso_weights](events, **kwargs)
+    # Top-pt reweighting is only defined for ttbar-like samples.
+    if self.dataset_inst.x("is_ttbar", False):
+      events = self[top_pt_weight](events, **kwargs)
+    else:
+      ones = np.ones(len(events), dtype=np.float32)
+      events = set_ak_column_f32(events, "top_pt_weight", ones)
+      events = set_ak_column_f32(events, "top_pt_weight_up", ones)
+      events = set_ak_column_f32(events, "top_pt_weight_down", ones)
+    if has_ak_column(events, "LHEPdfWeight"):
+      events = self[pdf_weights](events, **kwargs)
+    else:
+      ones = np.ones(len(events), dtype=np.float32)
+      events = set_ak_column_f32(events, "pdf_weight", ones)
+      events = set_ak_column_f32(events, "pdf_weight_up", ones)
+      events = set_ak_column_f32(events, "pdf_weight_down", ones)
+
+    if has_ak_column(events, "LHEScaleWeight"):
+      events = self[murmuf_weights](events, **kwargs)
+      events = self[murmuf_envelope_weights](events, **kwargs)
+    else:
+      ones = np.ones(len(events), dtype=np.float32)
+      for name in (
+        "mur_weight", "mur_weight_up", "mur_weight_down",
+        "muf_weight", "muf_weight_up", "muf_weight_down",
+        "murmuf_envelope_weight", "murmuf_envelope_weight_up", "murmuf_envelope_weight_down",
+      ):
+        events = set_ak_column_f32(events, name, ones)
+
   events = self[leading_lepton](events, **kwargs)
   
   events = self[prepare_objects](events, **kwargs)
@@ -98,7 +149,9 @@ def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
   wlnu_mt = np.sqrt(2 * events.Leptons[:,0].pt * events.MET.pt * (1 - np.cos(delta_phi))) #sh
   #wlnu_mt = np.sqrt(wlnu.energy**2 - wlnu.pz**2)
 
-  events = set_ak_column_f32(events, "mlnu", wlnu.mass) 
+  events = set_ak_column_f32(events, "mlnu", wlnu.mass)
+  mlnu_real = ak.where(events.nu_has_real, wlnu.mass, EMPTY_FLOAT)
+  events = set_ak_column_f32(events, "mlnu_real", mlnu_real)
   events = set_ak_column_f32(events, "mtlnu", wlnu_mt)
 
   # Now save the whole 4-momentum of the W
@@ -255,8 +308,15 @@ def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
 
   # from IPython import embed; embed()
 
+  has2b = ak.num(bjets_vec, axis=1) >= 2
+  valid_dr_bb = deltaR_bb != EMPTY_FLOAT
+  m_H_mass = ak.fill_none(lv_bb.mass, EMPTY_FLOAT)
+  m_H = ak.where(has2b & valid_dr_bb & (deltaR_bb <= 1.4), m_H_mass, EMPTY_FLOAT)
+  events = set_ak_column_f32(events, "m_H", m_H)
 
+  print("m_H = ", events.m_H)
 
+  #from IPython import embed; embed()
 
    
   #Define Lorentz Vector for top 

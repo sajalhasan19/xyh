@@ -93,6 +93,21 @@ def add_categories_njets(config: od.Config) -> None:
   Adds categories to a *config*, that are typically produced in `ProduceColumns`.
   """
 
+  cat_ge2j = config.add_category(  # noqa
+    name="ge2jets",
+    id=800,
+    selection="catid_ge2jets",
+    label=">=2j",
+  )
+
+
+  cat_2j = config.add_category(  # noqa
+    name="2jets",
+    id=900,
+    selection="catid_2jets",
+    label="2j",
+  )
+
   cat_4j = config.add_category(  # noqa
     name="4jets",
     id=300,
@@ -256,7 +271,7 @@ def add_combo_categories(config: od.Config) -> None:
     ],
     "jets": [
       config.get_category(name)
-      for name in ["4jets", "5jets", "6jets", "ge4jets", "ge5jets", "ge6jets", "g6jets"]
+      for name in ["2jets", "4jets", "5jets", "6jets", "ge4jets", "ge2jets", "ge5jets", "ge6jets", "g6jets"]
     ],
   }
 

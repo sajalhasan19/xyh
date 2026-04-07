@@ -123,12 +123,12 @@ def example(self):
         )
 
     # tune uncertainty
-    self.add_parameter(
-        "tune",
-        process="TT",
-        type=ParameterType.shape,
-        config_shift_source="tune",
-    )
+    # self.add_parameter(
+    #     "tune",
+    #     process="TT",
+    #     type=ParameterType.shape,
+    #     config_shift_source="tune",
+    # )
 
     # muon weight uncertainty
     self.add_parameter(

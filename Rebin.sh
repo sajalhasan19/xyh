@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/ml_settings_utils.sh"
+
 usage() {
   cat >&2 <<'EOU'
 Usage: Rebin.sh <xyh_binary_x<mass>_y<mass>> [options]
@@ -21,12 +24,13 @@ EOU
 
 ml_model=""
 version="${VERSION:-ml_v1}"
-config="${CONFIG:-config_2022pre}"
+config="${CONFIG:-config_2022post}"
 selector="${SELECTOR:-default}"
 producers="${PRODUCERS:-default}"
 inference_model="${INFERENCE_MODEL:-xyh_limits}"
-workers="${WORKERS:-30}"
+workers="${WORKERS:-50}"
 bins_per_category="${BINS_PER_CATEGORY:-}"
+training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5jets;1lep__3bjets__ge6jets;1lep__4bjets__5jets;1lep__ge4bjets__ge6jets}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -67,6 +71,8 @@ if ! command -v law >/dev/null 2>&1; then
   exit 1
 fi
 
+ml_settings="$(resolve_ml_settings "${ml_model}" "${training_categories}" "true" "false")"
+
 cmd=(
   law run xyh.ModifyDatacardsFlatRebin
   --version "${version}"
@@ -76,6 +82,8 @@ cmd=(
   --ml-models "${ml_model}"
   --inference-model "${inference_model}"
   --workers "${workers}"
+  #--job-workers "${WORKERS:-30}" --workflow htcondor
+
 )
 
 if [[ -n "${bins_per_category}" ]]; then
