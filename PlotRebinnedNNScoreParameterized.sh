@@ -13,7 +13,7 @@ Environment knobs:
   SELECTOR             (default: default)
   PRODUCERS            (default: default)
   INFERENCE_MODEL      (default: xyh_limits)
-  WORKERS              (default: 16)
+  WORKERS              (default: 56)
   DATACARD_VARIABLE    (default: nn_score__<MODEL>)
   CUSTOM_STYLE_CONFIG  (default: signals)
   STACKED              (default: 1; set 0/false to disable)
@@ -31,7 +31,28 @@ if [[ $# -ge 2 && $1 =~ ^[0-9]+$ && $2 =~ ^[0-9]+$ ]]; then
   shift 2
 fi
 [[ -n $EVAL_X && -n $EVAL_Y ]] || usage
-EXTRA_LAW_ARGS=("$@")
+ML_SETTINGS="${ML_SETTINGS:-}"
+EXTRA_LAW_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ml-model-settings)
+      if [[ $# -lt 2 ]]; then
+        echo "ERROR: missing argument for '$1'." >&2
+        usage
+      fi
+      ML_SETTINGS="$2"
+      shift 2
+      ;;
+    --ml-model-settings=*)
+      ML_SETTINGS="${1#*=}"
+      shift
+      ;;
+    *)
+      EXTRA_LAW_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
 
 USE_LOCAL_SCHEDULER=true
 for arg in "${EXTRA_LAW_ARGS[@]}"; do
@@ -56,7 +77,7 @@ VERSION="${VERSION:-ml_v1_pnn_2022post_cmall}"
 SELECTOR="${SELECTOR:-default}"
 PRODUCERS="${PRODUCERS:-default}"
 INFERENCE_MODEL="${INFERENCE_MODEL:-xyh_limits}"
-WORKERS="${WORKERS:-16}"
+WORKERS="${WORKERS:-56}"
 CUSTOM_STYLE_CONFIG="${CUSTOM_STYLE_CONFIG:-signals}"
 STACKED="${STACKED:-1}"
 

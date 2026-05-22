@@ -34,6 +34,34 @@ from xyh.inference.signals import (
 
 thisdir = os.path.dirname(os.path.abspath(__file__))
 
+
+def _add_process_children(
+  cfg: od.Config,
+  parent_name: str,
+  child_names: list[str],
+  available_processes: od.unique.UniqueObjectIndex | None = None,
+) -> None:
+  """
+  Attach existing child processes to an existing parent process in the config.
+
+  This is used to make generic process groups such as ``tt_nonb`` expand to the
+  decay-split processes that are actually written into histogram process axes.
+  """
+  parent = cfg.get_process(parent_name)
+  for child_name in child_names:
+    child = cfg.get_process(child_name, default=None)
+    if child is None:
+      if available_processes is None:
+        raise ValueError(f"unknown process: {child_name}")
+      child = available_processes.get(child_name, default=None)
+      if child is None:
+        raise ValueError(f"unknown process: {child_name}")
+      cfg.add_process(child)
+      child = cfg.get_process(child_name)
+    if child not in parent.processes:
+      parent.add_process(child)
+
+
 def add_config(
   analysis: od.Analysis,
   campaign: od.Campaign,
@@ -61,6 +89,10 @@ def add_config(
   if year not in implemented_years:
     raise NotImplementedError("For now, only 2022 campaign is fully implemented")
 
+  limited_postee_excluded_datasets = set()
+  if config_name == "config_2022post_limited":
+    limited_postee_excluded_datasets.add("dy_m4to10_amcatnlo")
+
   # get all root processes
   procs = get_root_processes_from_campaign(campaign)
 
@@ -73,6 +105,10 @@ def add_config(
     "dy": "#FBFF36",
     "data": "#000000",
     "tt": "#E04F21",  # red
+    "tt_nonb": "#E04F21",  # red
+    "tt_1b": "#B22222",  # firebrick
+    "tt_hf": "#8B0000",  # dark red
+    "ttbb": "#9E1B1B",  # dark red
     "ttv": "#5E8FFC",  # blue
     "w_lnu": "#82FF28",  # green
     "st": "#3E00FB",  # dark purple
@@ -86,7 +122,10 @@ def add_config(
   # add datasets we need to study
   process_names = [
     "dy",
-    "tt",
+    "tt_nonb",
+    "tt_1b",
+    "tt_hf",
+    "ttbb",
     "ttv",
     "ttvv",
     "st",
@@ -118,6 +157,39 @@ def add_config(
       if process_name not in background_processes:
         background_processes.append(process_name)
 
+  # Keep legacy decay-split top processes in the config as support processes.
+  # Event processing and histogram process axes can still carry the original
+  # inclusive ids (tt_sl / tt_dl / tt_fh and ttbb_sl / ttbb_dl / ttbb_fh),
+  # while higher-level plotting and inference should use the grouped top
+  # processes defined above.  The removed inclusive tt+HF component has its
+  # own tt_hf support process so plain tt remains the full inclusive parent.
+  for process_name in [
+    "tt",
+    "tt_sl",
+    "tt_dl",
+    "tt_fh",
+    "ttbb_sl",
+    "ttbb_dl",
+    "ttbb_fh",
+  ]:
+    process_obj = procs.get(process_name, default=None)
+    if process_obj is not None and cfg.get_process(process_name, default=None) is None:
+      cfg.add_process(process_obj)
+      cfg.get_process(process_name).color1 = colors.get("ttbb" if process_name.startswith("ttbb") else "tt", "#aaaaaa")
+      cfg.get_process(process_name).color2 = colors.get("ttbb" if process_name.startswith("ttbb") else "tt", "#000000")
+
+  _add_process_children(cfg, "tt", ["tt_sl", "tt_dl", "tt_fh"], procs)
+  _add_process_children(cfg, "ttbb", ["ttbb_sl", "ttbb_dl", "ttbb_fh"], procs)
+
+  # Re-attach decay-split top subprocesses to the generic top process groups so
+  # tasks using walk_processes(), e.g. CreateYieldTable, can resolve histograms
+  # whose process axes contain names like tt_sl_nonb instead of tt_nonb.
+  _add_process_children(cfg, "tt_nonb", ["tt_dl_nonb", "tt_sl_nonb", "tt_fh_nonb"], procs)
+  _add_process_children(cfg, "tt_1b", ["tt_dl_1b", "tt_sl_1b", "tt_fh_1b"], procs)
+  _add_process_children(cfg, "tt_hf", ["tt_dl_hf", "tt_sl_hf", "tt_fh_hf"], procs)
+  _add_process_children(cfg, "ttbb_nonb", ["ttbb_dl_nonb", "ttbb_sl_nonb", "ttbb_fh_nonb"], procs)
+  _add_process_children(cfg, "ttbb_1b", ["ttbb_dl_1b", "ttbb_sl_1b", "ttbb_fh_1b"], procs)
+
   def _match_era(
     *,
     run: int | set[int] | None = None,
@@ -146,6 +218,9 @@ def add_config(
     "tt_sl_powheg",
     "tt_dl_powheg",
     "tt_fh_powheg",
+    "ttbb_sl_powheg",
+    "ttbb_dl_powheg",
+    "ttbb_fh_powheg",
 
     # # TTV
     # "ttz_zll_m4to50_amcatnlo",
@@ -224,6 +299,12 @@ def add_config(
   ]
 
   dataset_names.extend(XYH_SIGNAL_DATASETS)
+  if limited_postee_excluded_datasets:
+    dataset_names = [
+      dataset_name
+      for dataset_name in dataset_names
+      if dataset_name not in limited_postee_excluded_datasets
+    ]
 
   signal_datasets: list[str] = []
   background_datasets: list[str] = []
@@ -331,7 +412,19 @@ def add_config(
 
 
   is_xyh_signal = lambda proc_name: proc_name.startswith("xyh_sl_")
-  is_xyh_background = lambda proc_name: proc_name.upper() in {"TT", "DY", "ST", "WJETS", "TTV", "TTVV", "VV"}
+  is_xyh_background = lambda proc_name: proc_name.upper() in {
+    "TT_NONB",
+    "TTBB_1B",
+    "DY",
+    "ST",
+    "W_LNU",
+    "TTV",
+    "TTVV",
+    "VV",
+    "WW",
+    "WZ",
+    "ZZ",
+  }
   only_process = lambda target: (lambda proc_name: proc_name.lower() == target.lower())
 
   background_rebin_categories = [
@@ -644,8 +737,9 @@ def add_config(
 
   cfg.add_shift(name="e_sf_up", id=40, type="shape")
   cfg.add_shift(name="e_sf_down", id=41, type="shape")
-  cfg.add_shift(name="e_trig_sf_up", id=42, type="shape")
-  cfg.add_shift(name="e_trig_sf_down", id=43, type="shape")
+  # Trigger SFs are disabled while no trigger selection is applied.
+  # cfg.add_shift(name="e_trig_sf_up", id=42, type="shape")
+  # cfg.add_shift(name="e_trig_sf_down", id=43, type="shape")
   add_aliases(
     "e_sf",
     {
@@ -655,7 +749,7 @@ def add_config(
     },
     selection_dependent=False,
   )
-  add_aliases("e_trig_sf", {"electron_weight": "electron_weight_{direction}"}, selection_dependent=False)
+  # add_aliases("e_trig_sf", {"electron_weight": "electron_weight_{direction}"}, selection_dependent=False)
 
   cfg.add_shift(name="muon_up", id=51, type="shape")
   cfg.add_shift(name="muon_down", id=52, type="shape")
@@ -862,7 +956,7 @@ def add_config(
   cfg.x.event_weights = DotDict({
     # consumed by default hist producer "all_weights"
     "normalization_weight": [],
-    "electron_weight": get_shifts_from_sources(cfg, "e_sf", "e_trig_sf"),
+    "electron_weight": get_shifts_from_sources(cfg, "e_sf"),
     "electron_mid_weight": get_shifts_from_sources(cfg, "e_sf"),
     "electron_id_weight": get_shifts_from_sources(cfg, "e_sf"),
     "muon_id_weight": get_shifts_from_sources(cfg, "muon"),

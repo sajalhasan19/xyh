@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/ml_settings_utils.sh"
+
 usage() {
   cat >&2 <<'EOF'
 Usage: RunCreateDatacardsParameterized.sh [eval_mass_x] [eval_mass_y] [<law args>]
@@ -13,7 +16,7 @@ Environment knobs:
   SELECTOR             (default: default)
   PRODUCERS            (default: default)
   INFERENCE_MODEL      (default: xyh_limits)
-  WORKERS              (default: 30)
+  WORKERS              (default: 56)
   DATACARD_VARIABLE    (default: nn_score__<MODEL>)
   ML_SETTINGS          (same format as in RunMLEvalParameterized.sh)
   COND_MASSES          (semicolon-separated list like x500_y350;x550_y400;...)
@@ -29,7 +32,28 @@ if [[ $# -ge 2 && $1 =~ ^[0-9]+$ && $2 =~ ^[0-9]+$ ]]; then
   shift 2
 fi
 [[ -n $EVAL_X && -n $EVAL_Y ]] || usage
-EXTRA_LAW_ARGS=("$@")
+ML_SETTINGS="${ML_SETTINGS:-}"
+EXTRA_LAW_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ml-model-settings)
+      if [[ $# -lt 2 ]]; then
+        echo "ERROR: missing argument for '$1'." >&2
+        usage
+      fi
+      ML_SETTINGS="$2"
+      shift 2
+      ;;
+    --ml-model-settings=*)
+      ML_SETTINGS="${1#*=}"
+      shift
+      ;;
+    *)
+      EXTRA_LAW_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
 
 USE_LOCAL_SCHEDULER=true
 for arg in "${EXTRA_LAW_ARGS[@]}"; do
@@ -50,11 +74,13 @@ DEFAULT_PNN_SETTINGS="hidden_units=512;512;256;128,dropout=0.3,learning_rate=5e-
 CONFIGS="${CONFIGS:-config_2022post}"
 CONFIG_FOR_DISCOVERY="${CONFIGS%%,*}"
 MODEL="${MODEL:-xyh_pnn_parameterized}"
-VERSION="${VERSION:-ml_v1_pnn_2022post_nounc}"
+BASE_VERSION="${VERSION:-ml_v1_pnn_2022post_nounc}"
+
+VERSION="${BASE_VERSION}"
 SELECTOR="${SELECTOR:-default}"
 PRODUCERS="${PRODUCERS:-default}"
 INFERENCE_MODEL="${INFERENCE_MODEL:-xyh_limits}"
-WORKERS="${WORKERS:-32}"
+WORKERS="${WORKERS:-56}"
 
 COND_MASSES="${COND_MASSES:-}"
 if [[ -z $COND_MASSES ]]; then
@@ -185,5 +211,16 @@ law run cf.CreateDatacards "${SCHEDULER_ARGS[@]}" \
   --inference-model "$INFERENCE_MODEL" \
   --workers "$WORKERS" \
   "${EXTRA_LAW_ARGS[@]}"
+
+record_datacard_mass_map \
+  "${MODEL}" \
+  "${ML_SETTINGS}" \
+  "x${EVAL_X}_y${EVAL_Y}" \
+  "${XYH_SIGNAL_PROCESS}" \
+  "${VERSION}" \
+  "${XYH_DATACARD_VARIABLE}" \
+  "${COND_MASSES}" \
+  "${EVAL_X}" \
+  "${EVAL_Y}"
 
 echo "Done."

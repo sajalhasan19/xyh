@@ -74,7 +74,8 @@ CATEGORY_SPECS: tuple[tuple[str, str], ...] = (
 
 # background process specifications (process label, config process name, dataset names)
 BACKGROUND_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("TT", "tt", ("tt_sl_powheg", "tt_dl_powheg", "tt_fh_powheg")),
+    ("TT_NONB", "tt_nonb", ("tt_sl_powheg", "tt_dl_powheg", "tt_fh_powheg")),
+    ("TTBB_1B", "ttbb_1b", ("ttbb_sl_powheg", "ttbb_dl_powheg", "ttbb_fh_powheg")),
     ("DY", "dy", (
         "dy_m4to10_amcatnlo",
         "dy_m10to50_amcatnlo",
@@ -102,15 +103,10 @@ BACKGROUND_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("ZZ", "zz", ("zz_pythia",)),
 )
 
-# parameter names controlling individual background normalisations
-BACKGROUND_RATE_PARAMETERS: tuple[str, ...] = (
-    "tt_norm",
-    "dy_norm",
-    "st_norm",
-    "wjets_norm",
-    "ttv_norm",
-    "ttvv_norm",
-    "vv_norm",
+# Unconstrained rate parameters for the top-background components used in the fit.
+TOP_RATE_PARAMETERS: tuple[tuple[str, str, str], ...] = (
+    ("tt_nonb_norm", "TT_NONB", "XYH_TT_NONB_NORM_RATEPARAM"),
+    ("ttbb_1b_norm", "TTBB_1B", "XYH_TTBB_1B_NORM_RATEPARAM"),
 )
 
 # shift sources used for b-tagging shape uncertainties
@@ -123,6 +119,13 @@ BTAG_SHAPE_SOURCES: tuple[str, ...] = (
     "btag_lf",
     "btag_lfstats1",
     "btag_lfstats2",
+)
+
+# Decorrelated murf envelope nuisances for the dominant processes.
+MURF_ENVELOPE_BACKGROUND_PARAMETERS: tuple[tuple[str, str], ...] = (
+    ("murf_envelope_tt_nonb", "TT_NONB"),
+    ("murf_envelope_ttbb_1b", "TTBB_1B"),
+    ("murf_envelope_st", "ST"),
 )
 
 def _resolve_signal_process() -> tuple[str, str, str]:
@@ -301,7 +304,8 @@ def xyh_limits(self) -> None:
 
     for shift_source in (
         "e_sf",
-        "e_trig_sf",
+        # Trigger SFs are disabled while no trigger selection is applied.
+        # "e_trig_sf",
         "muon",
         # "jer",
     ):
@@ -323,24 +327,25 @@ def xyh_limits(self) -> None:
         )
 
     #
-    # free-floating TT normalisation
+    # free-floating top normalisations
     #
 
     if not self.has_parameter_group("theory"):
         self.add_parameter_group("theory")
-    self.add_parameter(
-        "tt_norm",
-        process="TT",
-        type=ParameterType.rate_unconstrained,
-        effect=os.environ.get("XYH_TT_NORM_RATEPARAM", "1 [0,2]"),
-        group="theory",
-    )
+    for parameter_name, process_name, env_var in TOP_RATE_PARAMETERS:
+        self.add_parameter(
+            parameter_name,
+            process=process_name,
+            type=ParameterType.rate_unconstrained,
+            effect=os.environ.get(env_var, "1 [0,2]"),
+            group="theory",
+        )
 
     # self.add_parameter_group("theory")
     #
     # flat normalisation uncertainties for backgrounds
     # for param_name, (proc_name, _, _) in zip(BACKGROUND_RATE_PARAMETERS, BACKGROUND_SPECS):
-    #     if param_name == "tt_norm":
+    #     if param_name in {name for name, _, _ in TOP_RATE_PARAMETERS}:
     #         continue
     #     self.add_parameter(
     #         param_name,
@@ -349,10 +354,30 @@ def xyh_limits(self) -> None:
     #         group="theory",
     #     )
 
+    for cfg in self.config_insts:
+        if not cfg.has_shift("murf_envelope_up") or not cfg.has_shift("murf_envelope_down"):
+            raise ValueError(
+                f"required shifts 'murf_envelope_up/down' not found in config '{cfg.name}'",
+            )
+
+    for parameter_name, process_name in (
+        ("murf_envelope_signal", signal_process),
+        *MURF_ENVELOPE_BACKGROUND_PARAMETERS,
+    ):
+        self.add_parameter(
+            parameter_name,
+            process=process_name,
+            type=ParameterType.shape,
+            config_data={
+                cfg.name: self.parameter_config_spec(shift_source="murf_envelope")
+                for cfg in self.config_insts
+            },
+            group="theory",
+        )
+
     for shift_source in (
         # "mur",
         # "muf",
-        "murf_envelope",
         "pdf",
     ):
         for cfg in self.config_insts:

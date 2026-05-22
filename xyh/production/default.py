@@ -57,7 +57,7 @@ set_ak_column_f32 = functools.partial(set_ak_column, value_type=np.float32)
     top_pt_weight, pdf_weights, murmuf_weights, murmuf_envelope_weights,
     prepare_objects, leading_lepton,
     solve_neutrino_pz,
-    "event_number", "process_id",
+    "event_number",
     "mlnu", "mlnu_real", "mtlnu",
     "wboson.{pt,eta,phi,mass}",
     #"top_mass_manual",

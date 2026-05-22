@@ -41,6 +41,21 @@ def slugify(value: str) -> str:
     return slug or "plot"
 
 
+def get_label_colors(label: str, fallback_index: int) -> tuple[str, str]:
+    normalized = label.strip().lower()
+    custom_colors = {
+        "pnn": ("#dc2626", "#fca5a5"),
+        "pnn (post-ttbb)": ("#5b21b6", "#c4b5fd"),
+        "pnn (ttbb_v1)": ("#5b21b6", "#c4b5fd"),
+    }
+    if normalized in custom_colors:
+        return custom_colors[normalized]
+
+    colors = ["#0f766e", "#b91c1c", "#1d4ed8", "#7c3aed"]
+    light_colors = ["#94a3b8", "#fca5a5", "#93c5fd", "#d8b4fe"]
+    return colors[fallback_index % len(colors)], light_colors[fallback_index % len(light_colors)]
+
+
 def read_limit_summary(path: Path) -> list[LimitSummaryPoint]:
     points: list[LimitSummaryPoint] = []
     with path.open("r", encoding="utf-8", newline="") as handle:
@@ -68,7 +83,7 @@ def apply_label(ax: plt.Axes, label: str, *, right_x: float = 1.0, right_ha: str
         transform=ax.transAxes,
         ha="left",
         va="bottom",
-        fontsize=12,
+        fontsize=5,
         fontweight="bold",
     )
     ax.text(
@@ -268,8 +283,6 @@ def make_overlay_plot(
     tick_labels = [point.tick_label for point in labelled_points[0][1]]
 
     fig, ax = plt.subplots(figsize=(13.5, 7.2))
-    colors = ["#0f766e", "#b91c1c", "#1d4ed8", "#7c3aed"]
-    light_colors = ["#94a3b8", "#fca5a5", "#93c5fd", "#d8b4fe"]
     if len(labelled_points) > 1:
         offset_step = 0.14
         center = (len(labelled_points) - 1) / 2.0
@@ -283,12 +296,13 @@ def make_overlay_plot(
     for index, (label, points) in enumerate(labelled_points):
         points_by_label = {point.mass_label: point for point in points}
         ordered_points = [points_by_label[mass_label] for mass_label in common_labels]
+        color, light_color = get_label_colors(label, index)
         draw_expected_errorbars(
             ax,
             x_position_sets[index],
             ordered_points,
-            color=colors[index % len(colors)],
-            light_color=light_colors[index % len(light_colors)],
+            color=color,
+            light_color=light_color,
             label=label,
         )
 
@@ -313,13 +327,14 @@ def make_overlay_plot(
     }
     model_handles = []
     for index, (label, _) in enumerate(labelled_points):
+        color, _ = get_label_colors(label, index)
         model_handles.append(
             plt.Line2D(
                 [0], [0],
                 marker="o",
                 linestyle="none",
                 markerfacecolor="white",
-                markeredgecolor=colors[index % len(colors)],
+                markeredgecolor=color,
                 markeredgewidth=2.0,
                 markersize=8,
                 label=label_aliases.get(label.lower(), label),

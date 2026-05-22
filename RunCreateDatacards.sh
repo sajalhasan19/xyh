@@ -31,6 +31,7 @@ training_categories="${TRAINING_CATEGORIES:-1lep__3bjets__4jets;1lep__3bjets__5j
 ml_settings="$(resolve_ml_settings "${ml_model}" "${training_categories}" "true" "false")"
 
 signal_process="xyh_sl_${ml_model#xyh_binary_}"
+mass_point="${signal_process#xyh_sl_}"
 
 # Ensure the inference model knows which signal mass point to use.
 export XYH_SIGNAL_PROCESS="${signal_process}"
@@ -44,3 +45,11 @@ law run cf.CreateDatacards \
   --inference-model "${INFERENCE_MODEL:-xyh_limits}" \
   --workers "${WORKERS:-30}" |& tee dc_mx.log
   #--job-workers "${WORKERS:-30}" --workflow htcondor
+
+record_datacard_mass_map \
+  "${ml_model}" \
+  "${ml_settings}" \
+  "${mass_point}" \
+  "${signal_process}" \
+  "${VERSION:-no_unc}" \
+  "${XYH_DATACARD_VARIABLE:-}"

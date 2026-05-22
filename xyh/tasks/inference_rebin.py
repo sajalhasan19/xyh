@@ -327,6 +327,12 @@ class ModifyDatacardsFlatRebin(
         description="Number of bins per category in the format `cat_name=n_bins,...`; ",
     )
 
+    cards_version = luigi.Parameter(
+        default="",
+        description="Optional tag to add to the rebinned datacard output path.",
+        significant=True,
+    )
+
     # inference_category_rebin_processes = SettingsParameter(
     #     default={},
     #     significant=False,
@@ -424,6 +430,12 @@ class ModifyDatacardsFlatRebin(
             })
             for i, inf_cat in enumerate(self.inference_model_inst.categories)
         ]
+
+    def store_parts(self):
+        parts = super().store_parts()
+        if self.cards_version:
+            parts.insert_before("version", "cards_version", self.cards_version)
+        return parts
 
     def workflow_requires(self):
         reqs = super().workflow_requires()

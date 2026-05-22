@@ -19,10 +19,10 @@ from columnflow.selection.cms.jets import jet_veto_map
 
 from columnflow.production.util import attach_coffea_behavior
 from columnflow.production.cms.mc_weight import mc_weight
-from columnflow.production.processes import process_ids
 
 # Here import your selection modules from xyh/selection
 # from xyh.selection.trigger_selection import trigger_selection
+from xyh.production.processes import xyh_process_ids as process_ids
 from xyh.selection.lepton_selection import lepton_selection
 from xyh.selection.jet_selection import jet_selection
 

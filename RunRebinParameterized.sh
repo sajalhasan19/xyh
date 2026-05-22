@@ -9,11 +9,12 @@ Defaults: 1000 700
 Environment knobs:
   MODEL                (default: xyh_pnn_parameterized)
   VERSION              (default: ml_v1_pnn_2022post_1000_700_m1000)
+  DATACARD_VERSION     (default: eval_x<EVAL_X>_y<EVAL_Y>)
   CONFIGS              (default: config_2022post)
   SELECTOR             (default: default)
   PRODUCERS            (default: default)
   INFERENCE_MODEL      (default: xyh_limits)
-  WORKERS              (default: 16)
+  WORKERS              (default: 56)
   DATACARD_VARIABLE    (default: nn_score__<MODEL>)
   BINS_PER_CATEGORY    (optional map: "catA=3,catB=4")
   ML_SETTINGS          (same format as in RunMLEvalParameterized.sh)
@@ -30,7 +31,28 @@ if [[ $# -ge 2 && $1 =~ ^[0-9]+$ && $2 =~ ^[0-9]+$ ]]; then
   shift 2
 fi
 [[ -n $EVAL_X && -n $EVAL_Y ]] || usage
-EXTRA_LAW_ARGS=("$@")
+ML_SETTINGS="${ML_SETTINGS:-}"
+EXTRA_LAW_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ml-model-settings)
+      if [[ $# -lt 2 ]]; then
+        echo "ERROR: missing argument for '$1'." >&2
+        usage
+      fi
+      ML_SETTINGS="$2"
+      shift 2
+      ;;
+    --ml-model-settings=*)
+      ML_SETTINGS="${1#*=}"
+      shift
+      ;;
+    *)
+      EXTRA_LAW_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
 
 USE_LOCAL_SCHEDULER=true
 for arg in "${EXTRA_LAW_ARGS[@]}"; do
@@ -51,11 +73,14 @@ DEFAULT_PNN_SETTINGS="hidden_units=512;512;256;128,dropout=0.3,learning_rate=5e-
 CONFIGS="${CONFIGS:-config_2022post}"
 CONFIG_FOR_DISCOVERY="${CONFIGS%%,*}"
 MODEL="${MODEL:-xyh_pnn_parameterized}"
-VERSION="${VERSION:-ml_v1_pnn_2022post_1000_700_m1000}"
+BASE_VERSION="${VERSION:-ml_v1_pnn_2022post_1000_700_m1000}"
+EVAL_MASS_TAG="eval_x${EVAL_X}_y${EVAL_Y}"
+DATACARD_VERSION="${DATACARD_VERSION:-${EVAL_MASS_TAG}}"
+VERSION="${BASE_VERSION}"
 SELECTOR="${SELECTOR:-default}"
 PRODUCERS="${PRODUCERS:-default}"
 INFERENCE_MODEL="${INFERENCE_MODEL:-xyh_limits}"
-WORKERS="${WORKERS:-32}"
+WORKERS="${WORKERS:-56}"
 BINS_PER_CATEGORY="${BINS_PER_CATEGORY:-}"
 
 COND_MASSES="${COND_MASSES:-}"
@@ -179,6 +204,7 @@ cmd=(
   --producers "$PRODUCERS"
   --ml-models "$MODEL"
   --inference-model "$INFERENCE_MODEL"
+  --cards-version "$DATACARD_VERSION"
   --workers "$WORKERS"
 )
 
@@ -194,6 +220,7 @@ fi
 
 echo "Using MODEL: $MODEL"
 echo "Using VERSION: $VERSION"
+echo "Using DATACARD_VERSION: $DATACARD_VERSION"
 echo "Using CONFIGS: $CONFIGS"
 echo "Using XYH_SIGNAL_PROCESS: $XYH_SIGNAL_PROCESS"
 echo "Using XYH_DATACARD_VARIABLE: $XYH_DATACARD_VARIABLE"

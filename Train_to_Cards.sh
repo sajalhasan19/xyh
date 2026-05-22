@@ -13,6 +13,8 @@ Options:
       --eval-mass-y   Evaluation mass Y for parameterized model chain (default: 700)
       --eval-masses   Comma-separated eval mass points for parameterized model chain
                       format: x:y,x:y,...  (example: 650:350,750:500,1000:700)
+      --ml-model-settings <settings>
+                      ML settings used to identify the trained/evaluated model
   -h, --help          Show this help and exit
 
 By default, binary model mass points are discovered from the XYH 2022 postEE
@@ -21,13 +23,13 @@ campaign dataset file. Use `--model` to restrict processing to one model.
 Environment knobs:
   DATACARD_VARIABLE   Defaults to logit_nn_score__<model> (transformed score)
 
-Any additional arguments are forwarded to TrainPNN.sh for parameterized models
-(e.g. --workflow htcondor --job-workers 30 --htcondor-memory 64GB).
+Any additional law arguments are forwarded to the downstream tasks
+(e.g. --workflow htcondor --job-workers 48 --htcondor-memory 128GB).
 EOF
   exit 1
 }
 
-version="${VERSION:-ml_unc_pnn_v15}" #ml_unc_bin_x650_y350_v2 #ml_unc_pnn_v1
+version="${VERSION:-ttbb_v2}" #ml_unc_bin_x650_y350_v2 #ml_unc_pnn_v1
 config="${CONFIG:-config_2022post}"
 configs="${CONFIGS:-${config}}"
 ml_settings="${ML_SETTINGS:-hidden_units=512;256;128,dropout=0.2,learning_rate=3e-4,l2_reg=1e-5,batch_size=500,epochs=30,patience=0,validation_split=0.2,feature_set=legacy,reduce_lr_factor=0.5,reduce_lr_patience=3,early_stopping_min_delta=5e-5,reduce_lr_min_delta=5e-5,background_mass_mode=random}"
@@ -81,6 +83,18 @@ while [[ $# -gt 0 ]]; do
       fi
       eval_masses="$2"
       shift 2
+      ;;
+    --ml-model-settings)
+      if [[ $# -lt 2 ]]; then
+        echo "ERROR: missing argument for '$1'." >&2
+        usage
+      fi
+      ml_settings="$2"
+      shift 2
+      ;;
+    --ml-model-settings=*)
+      ml_settings="${1#*=}"
+      shift
       ;;
     -h|--help)
       usage
@@ -194,13 +208,13 @@ for model in "${models[@]}"; do
     for eval_point in "${parameterized_eval_points[@]}"; do
       read -r eval_x eval_y <<< "${eval_point}"
       echo "[+] Processing parameterized model ${model} at eval mass (${eval_x}, ${eval_y})"
-      # MODEL="${model}" ./TrainPNN.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" #&&
-      MODEL="${model}" ./RunMLEvalParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" #&&
-      # MODEL="${model}" ./PlotNNScore.sh "${model}" --raw --eval-mass-x "${eval_x}" --eval-mass-y "${eval_y}" --skip-ratio &&
-      # MODEL="${model}" ./PlotNNScore.sh "${model}" --logit --eval-mass-x "${eval_x}" --eval-mass-y "${eval_y}" --skip-ratio &&
-      # MODEL="${model}" DATACARD_VARIABLE="${datacard_variable}" ./RunCreateDatacardsParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" &&
-      # MODEL="${model}" DATACARD_VARIABLE="${datacard_variable}" ./RunRebinParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" #&&
-      # MODEL="${model}" DATACARD_VARIABLE="${datacard_variable}" ./PlotRebinnedNNScoreParameterized.sh "${eval_x}" "${eval_y}" --skip-ratio "${extra_law_args[@]}"
+      # MODEL="${model}" ./TrainPNN.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" &&
+      MODEL="${model}" ./RunMLEvalParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" &&
+      MODEL="${model}" ./PlotNNScore.sh "${model}" --raw --eval-mass-x "${eval_x}" --eval-mass-y "${eval_y}" &&
+      MODEL="${model}" ./PlotNNScore.sh "${model}" --logit --eval-mass-x "${eval_x}" --eval-mass-y "${eval_y}" &&
+      MODEL="${model}" DATACARD_VARIABLE="${datacard_variable}" ./RunCreateDatacardsParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" &&
+      MODEL="${model}" DATACARD_VARIABLE="${datacard_variable}" ./RunRebinParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}" &&
+      MODEL="${model}" DATACARD_VARIABLE="${datacard_variable}" ./PlotRebinnedNNScoreParameterized.sh "${eval_x}" "${eval_y}" "${extra_law_args[@]}"
     done
   else
     echo "ERROR: Unsupported ML model '${model}'." >&2

@@ -12,7 +12,7 @@ import numpy as np
 import tensorflow as tf
 
 from xyh.ml.feature_impact import (
-    compute_permutation_feature_impacts,
+    compute_shap_feature_impacts,
     load_parquet_inputs,
 )
 from xyh.ml.xyh_binary import XYHBinaryModel, XYHParameterizedBinaryModel
@@ -21,7 +21,7 @@ from xyh.ml.xyh_pnn import XYHPNNModel
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compute post-training feature impacts from a saved model and labeled parquet samples.",
+        description="Compute post-training SHAP values from a saved model and labeled parquet samples.",
     )
     parser.add_argument(
         "--model-path",
@@ -62,16 +62,21 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
         help="Conditioning mass y used for parameterized inference inputs.",
     )
     parser.add_argument(
-        "--repeats",
-        type=int,
-        default=3,
-        help="Number of permutation repeats per feature.",
-    )
-    parser.add_argument(
         "--max-events",
         type=int,
         default=50000,
-        help="Maximum number of combined events used for the impact study after random subsampling.",
+        help="Maximum number of combined events used after random subsampling.",
+    )
+    parser.add_argument(
+        "--background-size",
+        type=int,
+        default=200,
+        help="Background sample size used by the SHAP KernelExplainer.",
+    )
+    parser.add_argument(
+        "--kernel-nsamples",
+        default="auto",
+        help="Value forwarded to shap.KernelExplainer.shap_values(nsamples=...).",
     )
     parser.add_argument(
         "--seed",
@@ -88,12 +93,13 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
 
 
 def default_output_path(model_path: Path) -> Path:
+    suffix = "shap_values"
     if model_path.is_dir():
-        return model_path.parent / f"{model_path.name}_feature_impacts.json"
+        return model_path.parent / f"{model_path.name}_{suffix}.json"
     stem = model_path.stem
     if not stem:
         stem = model_path.name
-    return model_path.with_name(f"{stem}_feature_impacts.json")
+    return model_path.with_name(f"{stem}_{suffix}.json")
 
 
 class InferenceModelAdapter:
@@ -214,7 +220,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     if not model_path.exists():
         raise FileNotFoundError(f"Model path not found: {model_path}")
 
-    output_path = Path(args.output).expanduser() if args.output else default_output_path(model_path)
+    output_path = (
+        Path(args.output).expanduser() if args.output else default_output_path(model_path)
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     signal_events = load_parquet_inputs(args.signal_events)
@@ -227,19 +235,21 @@ def main(argv: Iterable[str] | None = None) -> int:
     model = load_inference_model(model_path)
     inputs, labels, weights, feature_names = build_inputs(args, signal_events, background_events)
 
-    payload = compute_permutation_feature_impacts(
+    payload = compute_shap_feature_impacts(
         model,
         inputs,
         labels,
         weights,
         feature_names,
-        repeats=args.repeats,
         max_events=args.max_events,
+        background_size=args.background_size,
+        kernel_nsamples=args.kernel_nsamples,
         seed=args.seed,
     )
     payload.update({
         "model_path": str(model_path),
         "model_type": args.model_type,
+        "method": "shap",
         "feature_set": args.feature_set,
         "feature_names": list(feature_names),
         "signal_files": [str(Path(path).expanduser()) for path in args.signal_events],

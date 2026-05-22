@@ -74,6 +74,15 @@ while [[ $# -gt 0 ]]; do
       [[ -z $variant ]] && usage
       shift 2
       ;;
+    --ml-model-settings)
+      ML_SETTINGS="${2:-}"
+      [[ -z $ML_SETTINGS ]] && usage
+      shift 2
+      ;;
+    --ml-model-settings=*)
+      ML_SETTINGS="${1#*=}"
+      shift
+      ;;
     -h|--help)
       usage
       ;;
@@ -250,7 +259,7 @@ law run cf.PlotVariables1D \
   --datasets "${signal_dataset},background" \
   --categories "${CATEGORIES:-cat_incl,1lep__3bjets__4jets,1lep__3bjets__5jets,1lep__3bjets__ge6jets,1lep__4bjets__5jets,1lep__ge4bjets__ge6jets}" \
   --variables "${variable}" \
-  --workers "${WORKERS:-16}" \
+  --workers "${WORKERS:-56}" \
   --custom-style-config signals \
   --process-settings "xyh,unstack,color=#000000,histtype=step,linewidth=2,linestyle=--,zorder=1000,scale=stack" --skip-ratio \
   "${EXTRA_LAW_ARGS[@]}"

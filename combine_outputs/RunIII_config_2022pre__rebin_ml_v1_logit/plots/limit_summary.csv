@@ -1,4 +1,0 @@
-mass_x,mass_y,tag,expected_m2sigma,expected_m1sigma,expected,expected_p1sigma,expected_p2sigma,observed
-900,700,RunIII,0.00263,0.00392,0.00601,0.00912,0.01273,
-1000,700,RunIII,0.0017,0.00255,0.00396,0.00597,0.00839,
-1200,700,RunIII,0.0006,0.00095,0.00161,0.00272,0.00412,

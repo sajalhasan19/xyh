@@ -61,7 +61,9 @@ class XYHBinaryModel(MLModel):
     # process names registered in the Run-3 configuration that we use as backgrounds
     background_processes: tuple[str, ...] = (
         "dy",
-        "tt",
+        "tt_nonb",
+        "tt_1b",
+        "ttbb",
         "ttz",
         "ttww",
         "ttzz",
@@ -88,6 +90,7 @@ class XYHBinaryModel(MLModel):
         "MET.pt",
         "MET.phi",
         "m_X",
+        "m_H",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -128,6 +131,9 @@ class XYHBinaryModel(MLModel):
         "met_pt",
         "met_phi",
         "m_x",
+        "m_h",
+        "m_x_minus_m_h",
+        "m_x_minus_m_tt",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -186,6 +192,9 @@ class XYHBinaryModel(MLModel):
         "met_pt",
         "met_phi",
         "m_x",
+        "m_h",
+        "m_x_minus_m_h",
+        "m_x_minus_m_tt",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -461,7 +470,10 @@ class XYHBinaryModel(MLModel):
         met_phi = ak.to_numpy(events.MET.phi)
 
         m_x = self._scalar_feature(events, "m_X")
+        m_h = self._scalar_feature(events, "m_H")
         m_tt = self._scalar_feature(events, "m_tt")
+        m_x_minus_m_h = m_x - m_h
+        m_x_minus_m_tt = m_x - m_tt
         tt_pt = self._scalar_feature(events, "tt_pt")
         top_pt_feature = self._scalar_feature(events, "top_pt")
         top_mass_feature = self._scalar_feature(events, "top_mass")
@@ -490,6 +502,9 @@ class XYHBinaryModel(MLModel):
             ("met_pt", met_pt),
             ("met_phi", met_phi),
             ("m_x", m_x),
+            ("m_h", m_h),
+            ("m_x_minus_m_h", m_x_minus_m_h),
+            ("m_x_minus_m_tt", m_x_minus_m_tt),
             ("m_tt", m_tt),
             ("tt_pt", tt_pt),
             ("top_pt", top_pt_feature),
@@ -980,7 +995,11 @@ class XYHParameterizedBinaryModel(XYHBinaryModel):
             )
         return pair
 
-    def _append_mass_features(self, base_features: np.ndarray, mass_pair: tuple[int, int]) -> np.ndarray:
+    def _append_mass_features(
+        self,
+        base_features: np.ndarray,
+        mass_pair: tuple[int, int],
+    ) -> np.ndarray:
         mass_x, mass_y = mass_pair
         mass_features = np.column_stack([
             np.full(len(base_features), mass_x, dtype=np.float32),

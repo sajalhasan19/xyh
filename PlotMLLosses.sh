@@ -26,11 +26,15 @@ if [[ $history_path =~ mlmodel_f([0-9]+)of([0-9]+) ]]; then
 fi
 
 version="unknown"
-if [[ $history_path =~ /(ml_v[0-9a-zA-Z_]+)/ ]]; then
+if [[ $history_path =~ /([^/]+)/mlmodel_f[0-9]+of[0-9]+/ ]]; then
+  version=${BASH_REMATCH[1]}
+elif [[ $history_path =~ /([^/]+)/[^/]*training_history[^/]*$ ]]; then
+  version=${BASH_REMATCH[1]}
+elif [[ $history_path =~ /([^/]+)/[^/]*model_history[^/]*$ ]]; then
   version=${BASH_REMATCH[1]}
 fi
 
-output_dir="/data/dust/user/hasansye/xyh/loss_plots"
+output_dir="/data/dust/user/hasansye/xyh/loss_plots/${version}"
 mkdir -p "$output_dir"
 
 export HIST_PATH="$history_path"
@@ -82,6 +86,12 @@ plt.plot(epochs, val_loss, label="val")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.legend()
+title_parts = [version]
+if mass_x and mass_y:
+    title_parts.append(f"mX={mass_x}, mY={mass_y}")
+if fold:
+    title_parts.append(f"fold {fold}")
+plt.title(" - ".join(title_parts))
 plt.savefig(output_path, dpi=150, bbox_inches="tight")
 print(f"Saved plot to {output_path}")
 PY

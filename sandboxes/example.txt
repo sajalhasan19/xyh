@@ -1,4 +1,4 @@
-# version 1
+# version 2
 
 # use packages from columnar sandbox as baseline
 -r ../modules/columnflow/sandboxes/columnar.txt
@@ -6,3 +6,5 @@
 # add numpy and tensorflow with exact version requirement
 numpy==1.26.4
 tensorflow==2.11.0
+matplotlib~=3.9.0
+shap==0.49.1

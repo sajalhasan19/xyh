@@ -60,6 +60,12 @@ class XYHPNNModel(MLModel):
         ("eval_mass_y", None),
         ("skip_missing_masses", True),
         ("require_conditioning_masses", True),
+        ("shap_enabled", True),
+        ("shap_max_events", 300),
+        ("shap_background_size", 50),
+        ("shap_kernel_nsamples", "auto"),
+        ("shap_plot_top_n", 20),
+        ("shap_on_validation", True),
         ("training_categories", (
             "1lep__ge4bjets__ge6jets",
             "1lep__3bjets__g6jets",
@@ -71,7 +77,9 @@ class XYHPNNModel(MLModel):
 
     background_processes: tuple[str, ...] = (
         "dy",
-        "tt",
+        "tt_nonb",
+        "tt_1b",
+        "ttbb",
         "ttz",
         "ttww",
         "ttzz",
@@ -97,6 +105,7 @@ class XYHPNNModel(MLModel):
         "MET.pt",
         "MET.phi",
         "m_X",
+        "m_H",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -136,6 +145,9 @@ class XYHPNNModel(MLModel):
         "met_pt",
         "met_phi",
         "m_x",
+        "m_h",
+        "m_x_minus_m_h",
+        "m_x_minus_m_tt",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -193,6 +205,9 @@ class XYHPNNModel(MLModel):
         "met_pt",
         "met_phi",
         "m_x",
+        "m_h",
+        "m_x_minus_m_h",
+        "m_x_minus_m_tt",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -229,6 +244,74 @@ class XYHPNNModel(MLModel):
         "all": legacy_feature_names,
         "curated": curated_feature_names,
     }
+
+    available_feature_names: tuple[str, ...] = (
+        "ht",
+        "n_jets",
+        "jet1_pt",
+        "jet2_pt",
+        "jet1_eta",
+        "jet2_eta",
+        "jet1_btag",
+        "jet2_btag",
+        "muon1_pt",
+        "electron1_pt",
+        "muon1_eta",
+        "electron1_eta",
+        "n_muons",
+        "n_electrons",
+        "met_pt",
+        "met_phi",
+        "m_x",
+        "m_h",
+        "m_x_minus_m_h",
+        "m_x_minus_m_tt",
+        "m_tt",
+        "tt_pt",
+        "top_pt",
+        "top_mass",
+        "m_lead_b",
+        "lead_b_pt",
+        "delta_r_jj",
+        "delta_r_qq",
+        "delta_r_bb",
+        "whad_mass",
+        "mlnu",
+        "mtlnu",
+        "wboson.pt",
+        "tt_bar_mass",
+        "tt_bar_pt",
+        "whad_pt",
+        "whad_eta",
+        "whad_phi",
+        "ht_additional",
+        "total_btag",
+        "n_additional_jets",
+        "jet3_pt",
+        "jet4_pt",
+        "jet5_pt",
+        "jet6_pt",
+        "jet3_eta",
+        "jet4_eta",
+        "jet5_eta",
+        "jet6_eta",
+        "jet3_btag",
+        "jet4_btag",
+        "jet5_btag",
+        "jet6_btag",
+        "ht_bjets",
+        "n_bjets",
+        "bjet_sum_btag",
+        "bjet1_pt",
+        "bjet2_pt",
+        "bjet3_pt",
+        "bjet1_eta",
+        "bjet2_eta",
+        "bjet3_eta",
+        "bjet1_btag",
+        "bjet2_btag",
+        "bjet3_btag",
+    )
 
     def __init__(self, *args, **kwargs) -> None:
         requested_store_name = kwargs.get("store_name", law.no_value)
@@ -458,7 +541,11 @@ class XYHPNNModel(MLModel):
             return pair
         return self._resolve_eval_mass(cond_masses)
 
-    def _append_mass_features(self, base_features: np.ndarray, mass_pair: tuple[int, int]) -> np.ndarray:
+    def _append_mass_features(
+        self,
+        base_features: np.ndarray,
+        mass_pair: tuple[int, int],
+    ) -> np.ndarray:
         mass_x, mass_y = mass_pair
         mass_features = np.column_stack([
             np.full(len(base_features), mass_x, dtype=np.float32),
@@ -472,9 +559,11 @@ class XYHPNNModel(MLModel):
         mass_x: np.ndarray,
         mass_y: np.ndarray,
     ) -> np.ndarray:
+        mass_x = np.asarray(mass_x, dtype=np.float32)
+        mass_y = np.asarray(mass_y, dtype=np.float32)
         mass_features = np.column_stack([
-            np.asarray(mass_x, dtype=np.float32),
-            np.asarray(mass_y, dtype=np.float32),
+            mass_x,
+            mass_y,
         ])
         return np.concatenate([base_features, mass_features], axis=1)
 
@@ -530,9 +619,18 @@ class XYHPNNModel(MLModel):
     def _training_parameter_pairs(self) -> list[tuple[str, Any]]:
         pairs = sorted(self.parameters.items())
         if self._eval_mass_affects_training():
-            return pairs
+            eval_only = set()
+        else:
+            eval_only = {"eval_mass_x", "eval_mass_y"}
 
-        eval_only = {"eval_mass_x", "eval_mass_y"}
+        eval_only |= {
+            "shap_enabled",
+            "shap_max_events",
+            "shap_background_size",
+            "shap_kernel_nsamples",
+            "shap_plot_top_n",
+            "shap_on_validation",
+        }
         return [(name, value) for name, value in pairs if name not in eval_only]
 
     def _training_model_repr(self) -> str:
@@ -562,6 +660,9 @@ class XYHPNNModel(MLModel):
 
     def open_model(self, target: law.FileSystemDirectoryTarget) -> "tf.keras.models.Model":
         return target.load(formatter="tf_keras_model")
+
+    def _selected_feature_names(self) -> tuple[str, ...]:
+        return self._select_feature_names(self.available_feature_names)
 
     @staticmethod
     def _stack_events(parquet_targets: list[dict[str, law.FileSystemFileTarget]]) -> ak.Array:
@@ -696,7 +797,10 @@ class XYHPNNModel(MLModel):
         met_pt = self._scalar_feature(events, "MET.pt")
         met_phi = self._scalar_feature(events, "MET.phi")
         m_x = self._scalar_feature(events, "m_X")
+        m_h = self._scalar_feature(events, "m_H")
         m_tt = self._scalar_feature(events, "m_tt")
+        m_x_minus_m_h = m_x - m_h
+        m_x_minus_m_tt = m_x - m_tt
         tt_pt = self._scalar_feature(events, "tt_pt")
         top_pt_feature = self._scalar_feature(events, "top_pt")
         top_mass_feature = self._scalar_feature(events, "top_mass")
@@ -733,6 +837,9 @@ class XYHPNNModel(MLModel):
             ("met_pt", met_pt),
             ("met_phi", met_phi),
             ("m_x", m_x),
+            ("m_h", m_h),
+            ("m_x_minus_m_h", m_x_minus_m_h),
+            ("m_x_minus_m_tt", m_x_minus_m_tt),
             ("m_tt", m_tt),
             ("tt_pt", tt_pt),
             ("top_pt", top_pt_feature),
