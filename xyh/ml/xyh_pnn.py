@@ -106,6 +106,7 @@ class XYHPNNModel(MLModel):
         "MET.phi",
         "m_X",
         "m_H",
+        "m_bb",
         "m_tt",
         "tt_pt",
         "top_pt",
@@ -146,6 +147,7 @@ class XYHPNNModel(MLModel):
         "met_phi",
         "m_x",
         "m_h",
+        "m_bb",
         "m_x_minus_m_h",
         "m_x_minus_m_tt",
         "m_tt",
@@ -206,6 +208,7 @@ class XYHPNNModel(MLModel):
         "met_phi",
         "m_x",
         "m_h",
+        "m_bb",
         "m_x_minus_m_h",
         "m_x_minus_m_tt",
         "m_tt",
@@ -264,6 +267,7 @@ class XYHPNNModel(MLModel):
         "met_phi",
         "m_x",
         "m_h",
+        "m_bb",
         "m_x_minus_m_h",
         "m_x_minus_m_tt",
         "m_tt",
@@ -798,6 +802,7 @@ class XYHPNNModel(MLModel):
         met_phi = self._scalar_feature(events, "MET.phi")
         m_x = self._scalar_feature(events, "m_X")
         m_h = self._scalar_feature(events, "m_H")
+        m_bb = self._scalar_feature(events, "m_bb")
         m_tt = self._scalar_feature(events, "m_tt")
         m_x_minus_m_h = m_x - m_h
         m_x_minus_m_tt = m_x - m_tt
@@ -838,6 +843,7 @@ class XYHPNNModel(MLModel):
             ("met_phi", met_phi),
             ("m_x", m_x),
             ("m_h", m_h),
+            ("m_bb", m_bb),
             ("m_x_minus_m_h", m_x_minus_m_h),
             ("m_x_minus_m_tt", m_x_minus_m_tt),
             ("m_tt", m_tt),

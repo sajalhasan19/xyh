@@ -66,6 +66,7 @@ set_ak_column_f32 = functools.partial(set_ak_column, value_type=np.float32)
     "m_bb",
     "m_H",
     "lv_bb",
+    "lv_H",
     # "m_lead_b",
     # "lead_b_pt",
     "top_mass", #sh
@@ -80,6 +81,7 @@ set_ak_column_f32 = functools.partial(set_ak_column, value_type=np.float32)
     "deltaR_qq",
     "deltaR_bb",
     "deltaR_jj",
+    "lv_X",
     "m_X",
   },
   #exposed=True
@@ -308,13 +310,42 @@ def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
 
   # from IPython import embed; embed()
 
+  # Define the reconstructed Higgs-boson candidate
   has2b = ak.num(bjets_vec, axis=1) >= 2
-  valid_dr_bb = deltaR_bb != EMPTY_FLOAT
-  m_H_mass = ak.fill_none(lv_bb.mass, EMPTY_FLOAT)
-  m_H = ak.where(has2b & valid_dr_bb & (deltaR_bb <= 1.4), m_H_mass, EMPTY_FLOAT)
-  events = set_ak_column_f32(events, "m_H", m_H)
 
-  print("m_H = ", events.m_H)
+  valid_H = (
+      has2b
+      & (deltaR_bb != EMPTY_FLOAT)
+      & (deltaR_bb <= 1.4)
+  )
+
+  # Mask lv_bb when the event does not satisfy the H-candidate definition
+  lv_H = ak.mask(lv_bb, valid_H)
+  lv_H = ak.with_name(
+      lv_H,
+      "PtEtaPhiMLorentzVector",
+  )
+  lv_H = lv_mass(lv_H)
+
+  events = set_ak_column(
+      events,
+      "lv_H",
+      lv_H,
+  )
+
+  events = set_ak_column_f32(
+      events,
+      "m_H",
+      ak.fill_none(lv_H.mass, EMPTY_FLOAT),
+  )
+  
+  # has2b = ak.num(bjets_vec, axis=1) >= 2
+  # valid_dr_bb = deltaR_bb != EMPTY_FLOAT
+  # m_H_mass = ak.fill_none(lv_bb.mass, EMPTY_FLOAT)
+  # m_H = ak.where(has2b & valid_dr_bb & (deltaR_bb <= 1.4), m_H_mass, EMPTY_FLOAT)
+  # events = set_ak_column_f32(events, "m_H", m_H)
+
+  # print("m_H = ", events.m_H)
 
   #from IPython import embed; embed()
 
@@ -502,7 +533,7 @@ def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
 
   lv_tt_bar = lv_mass(lv_tt_bar)
 
-  events = set_ak_column_f32(events, "lv_tt_bar", lv_tt_bar)
+  events = set_ak_column(events, "lv_tt_bar", lv_tt_bar)
 
   #print("tt_bar vector = ", events.lv_tt_bar)
 
@@ -515,16 +546,45 @@ def default(self: Producer, events: ak.Array, **kwargs) -> ak.Array:
 
   # from IPython import embed; embed()
 
-  #Construct X_mass
-  valid_m_tt = events.tt_bar_mass != EMPTY_FLOAT
-  valid_m_bb = events.m_bb != EMPTY_FLOAT
-  valid = valid_m_tt & valid_m_bb
+  # Reconstruct the X-boson candidate:
+  #
+  # X -> YH
+  # Y -> ttbar
+  # H -> bb
+  #
+  # p_X = p_ttbar + p_H
+  # m_X = sqrt(p_X^2)
 
-  m_tt_clean = ak.where(valid, events.tt_bar_mass, EMPTY_FLOAT)
-  m_bb_clean = ak.where(valid, events.m_bb, EMPTY_FLOAT)
+  lv_X = lv_tt_bar + lv_H
+  lv_X = ak.with_name(
+      lv_X,
+      "PtEtaPhiMLorentzVector",
+  )
+  lv_X = lv_mass(lv_X)
 
-  m_X = ak.where(valid, m_tt_clean + m_bb_clean, EMPTY_FLOAT)
-  events = set_ak_column_f32(events, "m_X", m_X)
+  events = set_ak_column(
+      events,
+      "lv_X",
+      lv_X,
+  )
+
+  m_X = ak.fill_none(
+      lv_X.mass,
+      EMPTY_FLOAT,
+  )
+
+  # Protect against possible numerical NaN or infinity values
+  m_X = ak.where(
+      np.isfinite(m_X),
+      m_X,
+      EMPTY_FLOAT,
+  )
+
+  events = set_ak_column_f32(
+      events,
+      "m_X",
+      m_X,
+  )
  
 
   #from IPython import embed; embed()

@@ -127,7 +127,7 @@ def add_variables(config: od.Config) -> None:
     aux={"inputs": {"Bjet.pt"}, "overflow": True},
     binning=(6, -0.5, 6.5),
     discrete_x=True,
-    x_title="Number of bjets",
+    x_title="Number of b-tagged jets",
   )
 
   config.add_variable(
@@ -277,10 +277,16 @@ def add_variables(config: od.Config) -> None:
       name="m_H",
       expression="m_H",
       null_value=EMPTY_FLOAT,
-      binning=(40, 0., 400.),
+      binning=(40, 0.0, 400.0),
       unit="GeV",
-      x_title=r"$m_{bb_{lead},(\Delta R<1.4)}$",
-      aux={"hist_axes": ("category", "process", "shift"),},
+      x_title=r"$m_H^{\mathrm{reco}} = m(b_1b_2)$",
+      aux={
+          "hist_axes": (
+              "category",
+              "process",
+              "shift",
+          ),
+      },
   )
 
   for i in range(2):
@@ -313,7 +319,7 @@ def add_variables(config: od.Config) -> None:
       null_value=EMPTY_FLOAT,
       binning=(40, 0., 400.),
       unit="GeV",
-      x_title=r"$m_{pq}$",
+      x_title=r"$m_{W_{\mathrm{had}}}$",
   )
 
   config.add_variable(
@@ -385,7 +391,7 @@ def add_variables(config: od.Config) -> None:
       null_value=EMPTY_FLOAT,
       binning=(40, 100., 1500.),
       unit="GeV",
-      x_title="m_tt",
+      x_title=r"$m_Y^{\mathrm{reco}} = m(t\bar{t})$",
       aux={"hist_axes": ("category", "process", "shift"),},
   )
   
@@ -438,11 +444,17 @@ def add_variables(config: od.Config) -> None:
       name="m_X",
       expression="m_X",
       null_value=EMPTY_FLOAT,
-      binning=(50, 0., 1500.),
+      binning=(50, 0.0, 2500.0),
       unit="GeV",
-      x_title="m_ttH",
-      aux={"hist_axes": ("category", "process", "shift")},
-  )  
+      x_title=r"$m_X^{\mathrm{reco}} = m(t\bar{t}H)$",
+      aux={
+          "hist_axes": (
+              "category",
+              "process",
+              "shift",
+          ),
+      },
+  )
   
 
 #sh
@@ -527,7 +539,12 @@ def add_variables(config: od.Config) -> None:
         null_value=-1.0,
         binning=(1000, -2., 12.),
         unit="",
-        x_title=f"logit NN score ({model})",
+        # x_title=f"logit NN score ({model})",
+        x_title=(
+            "Logit-transformed PNN score"
+            if model == "xyh_pnn_parameterized"
+            else f"Logit-transformed NN score ({model})"
+        ),
         aux={
             "hist_axes": ("category", "process", "shift"),
             "inputs": {f"{model}.score"},

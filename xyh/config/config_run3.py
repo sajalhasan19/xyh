@@ -492,10 +492,16 @@ def add_config(
     "default": ["n_jet", "jet1_pt"],
   }
 
-  # shift groups for conveniently looping over certain shifts
-  # (used during plotting)
+  # # shift groups for conveniently looping over certain shifts
+  # # (used during plotting)
+  # cfg.x.shift_groups = {
+  #   "jer": ["nominal", "jer_up", "jer_down"],
+  # }
+
   cfg.x.shift_groups = {
-    "jer": ["nominal", "jer_up", "jer_down"],
+  "jec": ["nominal", "jec_Total_up", "jec_Total_down"],
+  "jer": ["nominal", "jer_up", "jer_down"],
+  "jme": ["nominal", "jec_Total_up", "jec_Total_down", "jer_up", "jer_down"],
   }
 
   # selector step groups for conveniently looping over certain steps
@@ -805,6 +811,137 @@ def add_config(
   # cfg.add_shift(name="jer_down", id=6001, type="shape", tags={"selection_dependent"})
   # add_aliases("jer", {"Jet.pt": "Jet.pt_{name}", "Jet.mass": "Jet.mass_{name}"}, selection_dependent=True)
 
+  #
+  # # Jet energy scale and resolution shape uncertainties
+  # #
+
+  # # JEC uncertainty sources.
+  # # With cfg.x.jec.Jet.uncertainty_sources = ["Total"], this creates:
+  # #   jec_Total_up
+  # #   jec_Total_down
+  # for i, jec_source in enumerate(cfg.x.jec.Jet.uncertainty_sources):
+  #   shift_source = f"jec_{jec_source}"
+
+  #   cfg.add_shift(
+  #     name=f"{shift_source}_up",
+  #     id=5000 + 2 * i,
+  #     type="shape",
+  #     tags={"selection_dependent"},
+  #   )
+  #   cfg.add_shift(
+  #     name=f"{shift_source}_down",
+  #     id=5001 + 2 * i,
+  #     type="shape",
+  #     tags={"selection_dependent"},
+  #   )
+
+  #   add_aliases(
+  #     shift_source,
+  #     {
+  #       "Jet.pt": "Jet.pt_{name}",
+  #       "Jet.mass": "Jet.mass_{name}",
+  #     },
+  #     selection_dependent=True,
+  #   )
+
+  # # JER uncertainty
+  # cfg.add_shift(
+  #   name="jer_up",
+  #   id=6000,
+  #   type="shape",
+  #   tags={"selection_dependent"},
+  # )
+  # cfg.add_shift(
+  #   name="jer_down",
+  #   id=6001,
+  #   type="shape",
+  #   tags={"selection_dependent"},
+  # )
+
+  # add_aliases(
+  #   "jer",
+  #   {
+  #     "Jet.pt": "Jet.pt_{name}",
+  #     "Jet.mass": "Jet.mass_{name}",
+  #   },
+  #   selection_dependent=True,
+  # )
+
+    #
+  # Jet energy scale and resolution shape uncertainties
+  #
+
+  # JEC uncertainty sources.
+  # With cfg.x.jec.Jet.uncertainty_sources = ["Total"], this creates:
+  #   jec_Total_up
+  #   jec_Total_down
+  for i, jec_source in enumerate(cfg.x.jec.Jet.uncertainty_sources):
+    shift_source = f"jec_{jec_source}"
+
+    cfg.add_shift(
+      name=f"{shift_source}_up",
+      id=5000 + 2 * i,
+      type="shape",
+      tags={"selection_dependent", "jec"},
+    )
+    cfg.add_shift(
+      name=f"{shift_source}_down",
+      id=5001 + 2 * i,
+      type="shape",
+      tags={"selection_dependent", "jec"},
+    )
+
+    # Required by the b-tag SF producer for shifts tagged as "jec".
+    for direction in ["up", "down"]:
+      shift = cfg.get_shift(od.Shift.join_name(shift_source, direction))
+      shift.set_aux("jec_source", jec_source)
+
+    # Object kinematic aliases for the selection-dependent JEC shift
+    add_aliases(
+      shift_source,
+      {
+        "Jet.pt": "Jet.pt_{name}",
+        "Jet.mass": "Jet.mass_{name}",
+        "MET.pt": "MET.pt_{name}",
+        "MET.phi": "MET.phi_{name}",
+      },
+      selection_dependent=True,
+    )
+
+    # B-tag SF alias for the JEC-dependent b-tag weight
+    add_aliases(
+      shift_source,
+      {
+        "btag_weight": f"btag_weight_jec_{jec_source}" + "_{direction}",
+      },
+      selection_dependent=False,
+    )
+
+  # JER uncertainty
+  cfg.add_shift(
+    name="jer_up",
+    id=6000,
+    type="shape",
+    tags={"selection_dependent", "jer"},
+  )
+  cfg.add_shift(
+    name="jer_down",
+    id=6001,
+    type="shape",
+    tags={"selection_dependent", "jer"},
+  )
+
+  add_aliases(
+    "jer",
+    {
+      "Jet.pt": "Jet.pt_{name}",
+      "Jet.mass": "Jet.mass_{name}",
+      "MET.pt": "MET.pt_{name}",
+      "MET.phi": "MET.phi_{name}",
+    },
+    selection_dependent=True,
+  )
+
   def make_jme_filename(jme_aux, sample_type, name, era=None):
     """
     Convenience function to compute paths to JEC files.
@@ -912,6 +1049,9 @@ def add_config(
       "LHEPdfWeight", "LHEScaleWeight",
       "Pileup.nTrueInt",
       "GenPart.*",
+      # shifted JEC/JER columns produced during calibration
+      "Jet.pt_*", "Jet.mass_*",
+      "MET.pt_*", "MET.phi_*",
     } | set(  # Jets
       f"{jet_obj}.{field}"
       for jet_obj in ["Jet"]
@@ -977,6 +1117,7 @@ def add_config(
       "btag_lf",
       "btag_lfstats1",
       "btag_lfstats2",
+      "jec_Total",
     ),
   })
 

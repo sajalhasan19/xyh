@@ -281,6 +281,43 @@ def xyh_limits(self) -> None:
     #     group="experiment",
     # )
 
+        #
+    # # top-pT reweighting shape uncertainty
+    # #
+
+    # #
+    # # theory/modeling uncertainties
+    # #
+
+    # if not self.has_parameter_group("theory"):
+    #     self.add_parameter_group("theory")
+
+    # #
+    # # top-pT reweighting shape uncertainty
+    # #
+
+    # top_pt_processes = [
+    #     "TT_NONB",
+    #     "TTBB_1B",
+    # ]
+
+    # for cfg in self.config_insts:
+    #     if not cfg.has_shift("top_pt_up") or not cfg.has_shift("top_pt_down"):
+    #         raise ValueError(
+    #             f"required shifts 'top_pt_up/down' not found in config '{cfg.name}'",
+    #         )
+
+    # self.add_parameter(
+    #     "top_pt",
+    #     process=top_pt_processes,
+    #     type=ParameterType.shape,
+    #     config_data={
+    #         cfg.name: self.parameter_config_spec(shift_source="top_pt")
+    #         for cfg in self.config_insts
+    #     },
+    #     group="theory",
+    # )
+
     #
     # b-tagging shape uncertainties
     #
@@ -302,12 +339,21 @@ def xyh_limits(self) -> None:
             group="experiment",
         )
 
+    # for shift_source in (
+    #     "e_sf",
+    #     # Trigger SFs are disabled while no trigger selection is applied.
+    #     # "e_trig_sf",
+    #     "muon",
+    #     # "jer",
+    # ):
+
     for shift_source in (
         "e_sf",
         # Trigger SFs are disabled while no trigger selection is applied.
         # "e_trig_sf",
         "muon",
-        # "jer",
+        "jec_Total",
+        "jer",
     ):
         for cfg in self.config_insts:
             if not cfg.has_shift(f"{shift_source}_up") or not cfg.has_shift(f"{shift_source}_down"):

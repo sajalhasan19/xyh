@@ -73,10 +73,32 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
         default=200,
         help="Background sample size used by the SHAP KernelExplainer.",
     )
+    def parse_kernel_nsamples(value):
+        if value == "auto":
+            return "auto"
+
+        try:
+            value = int(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(
+                "--kernel-nsamples must be 'auto' or a positive integer"
+            ) from exc
+
+        if value <= 0:
+            raise argparse.ArgumentTypeError(
+                "--kernel-nsamples must be greater than zero"
+            )
+
+        return value
+
     parser.add_argument(
         "--kernel-nsamples",
+        type=parse_kernel_nsamples,
         default="auto",
-        help="Value forwarded to shap.KernelExplainer.shap_values(nsamples=...).",
+        help=(
+            "Number of Kernel SHAP samples, or 'auto'. "
+            "Forwarded to shap.KernelExplainer.shap_values(nsamples=...)."
+        ),
     )
     parser.add_argument(
         "--seed",

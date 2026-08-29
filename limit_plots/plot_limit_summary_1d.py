@@ -69,7 +69,7 @@ def apply_label(ax: plt.Axes, label: str) -> None:
     ax.text(
         0.0,
         1.02,
-        "Private work (CMS simulation)",
+        "Private work (CMS Simulation)",
         transform=ax.transAxes,
         ha="left",
         va="bottom",
